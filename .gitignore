@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project-local runtime data (SQLite DB, Garmin session token cache)
+/data/
+*.db
+
