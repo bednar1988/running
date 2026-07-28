@@ -32,7 +32,26 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString("pl-PL", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-let rollingChart, pacehrChart, aggChart;
+// --- Tabs -------------------------------------------------------------
+
+const loadedTabs = new Set(["overview"]);
+
+function switchTab(name) {
+  document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+  document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("hidden", p.dataset.tab !== name));
+  if (!loadedTabs.has(name)) {
+    loadedTabs.add(name);
+    if (name === "activities") loadActivities();
+  }
+}
+
+document.querySelectorAll(".tab-btn").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)));
+
+// --- Overview tab -------------------------------------------------------
+
+let rollingChart, pacehrChart, efChart, zonesChart, wellnessChart, aggChart;
+
+const ZONE_COLORS = ["#2ec4b6", "#4caf50", "#ffc107", "#ff6b35", "#e63946"];
 
 async function loadSummaryCards() {
   const today = new Date();
@@ -158,6 +177,92 @@ async function loadPaceHrChart() {
   });
 }
 
+async function loadEfficiencyChart() {
+  const data = await api("/api/progression/efficiency-factor?weeks=26");
+  const ctx = $("#ef-chart");
+  if (efChart) efChart.destroy();
+  efChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: data.map((d) => d.week),
+      datasets: [
+        {
+          label: "Efficiency Factor",
+          data: data.map((d) => d.ef),
+          borderColor: "#2ec4b6",
+          backgroundColor: "rgba(46,196,182,0.15)",
+          fill: true,
+          tension: 0.25,
+        },
+      ],
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: { y: { title: { display: true, text: "m/min na uderzenie serca (wyżej = lepiej)" } } },
+    },
+  });
+}
+
+async function loadZonesChart() {
+  const data = await api("/api/hr-zones/weekly?weeks=12");
+  const ctx = $("#zones-chart");
+  if (zonesChart) zonesChart.destroy();
+  zonesChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: data.map((d) => d.week),
+      datasets: [1, 2, 3, 4, 5].map((z, i) => ({
+        label: `Strefa ${z}`,
+        data: data.map((d) => d[`zone_${z}_min`]),
+        backgroundColor: ZONE_COLORS[i],
+      })),
+    },
+    options: {
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true, title: { display: true, text: "minuty" } },
+      },
+    },
+  });
+}
+
+async function loadWellnessChart() {
+  const data = await api("/api/wellness");
+  const ctx = $("#wellness-chart");
+  if (wellnessChart) wellnessChart.destroy();
+  wellnessChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: data.map((d) => d.date),
+      datasets: [
+        {
+          label: "Tętno spoczynkowe",
+          data: data.map((d) => d.resting_hr),
+          borderColor: "#ff6b35",
+          yAxisID: "rhr",
+          tension: 0.25,
+          pointRadius: 0,
+        },
+        {
+          label: "HRV (ms)",
+          data: data.map((d) => d.hrv_avg_ms),
+          borderColor: "#2ec4b6",
+          yAxisID: "hrv",
+          tension: 0.25,
+          pointRadius: 0,
+        },
+      ],
+    },
+    options: {
+      scales: {
+        x: { ticks: { maxTicksLimit: 10 } },
+        rhr: { type: "linear", position: "left", title: { display: true, text: "RHR (bpm)" } },
+        hrv: { type: "linear", position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "HRV (ms)" } },
+      },
+    },
+  });
+}
+
 async function loadAggregate() {
   const period = $("#agg-period").value;
   const data = await api(`/api/aggregate?period=${period}`);
@@ -183,18 +288,133 @@ async function loadAggregate() {
     .join("");
 }
 
-async function loadActivities() {
-  const data = await api("/api/activities?limit=20");
-  $("#activities-table tbody").innerHTML = data.activities
-    .map(
-      (a) =>
-        `<tr><td>${fmtDate(a.date)}</td><td>${a.distance_km} km</td><td>${a.duration_min} min</td><td>${a.avg_pace_per_km ?? "—"}</td><td>${a.avg_hr ?? "—"}</td><td>${a.cadence_spm ?? "—"}</td><td>${a.aerobic_te != null ? a.aerobic_te.toFixed(1) : "—"}</td></tr>`
-    )
-    .join("");
+// --- Activities tab -----------------------------------------------------
+
+let activityDetailCache = {};
+
+function decouplingBadge(pct) {
+  if (pct === null || pct === undefined) return `<span class="decoupling-badge unknown">brak danych</span>`;
+  const cls = pct < 5 ? "good" : pct <= 10 ? "ok" : "high";
+  return `<span class="decoupling-badge ${cls}">${pct > 0 ? "+" : ""}${pct}%</span>`;
 }
 
+function zoneMiniBar(zones) {
+  const total = zones.reduce((sum, z) => sum + (z.time_in_zone_min || 0), 0);
+  if (!total) return `<span class="hint">Brak danych o strefach tętna dla tego treningu.</span>`;
+  const spans = zones
+    .filter((z) => z.time_in_zone_min)
+    .map(
+      (z) =>
+        `<span class="zone-${z.zone_number}" style="width:${(z.time_in_zone_min / total) * 100}%" title="Strefa ${z.zone_number}: ${z.time_in_zone_min} min"></span>`
+    )
+    .join("");
+  return `<div class="zone-mini-bar">${spans}</div>`;
+}
+
+function lapsTable(laps) {
+  if (!laps.length) return `<p class="hint">Brak danych o okrążeniach.</p>`;
+  const rows = laps
+    .map(
+      (l) =>
+        `<tr><td>${l.lap_index}</td><td>${l.distance_km ?? "—"} km</td><td>${l.duration_min ?? "—"} min</td><td>${l.avg_pace_per_km ?? "—"}</td><td>${l.avg_hr ?? "—"}</td><td>${l.avg_cadence_spm ?? "—"}</td></tr>`
+    )
+    .join("");
+  return `<table class="laps-table"><thead><tr><th>#</th><th>Dystans</th><th>Czas</th><th>Tempo</th><th>Tętno</th><th>Kadencja</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function loadTrackMap(id) {
+  const mapEl = $(`#map-${id}`);
+  if (!mapEl) return;
+  try {
+    const data = await api(`/api/activities/${id}/track`);
+    const map = L.map(mapEl, { attributionControl: false, zoomControl: false });
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+    const line = L.polyline(data.points, { color: "#ff6b35", weight: 3 }).addTo(map);
+    map.fitBounds(line.getBounds(), { padding: [10, 10] });
+    setTimeout(() => map.invalidateSize(), 50);
+  } catch (e) {
+    mapEl.classList.add("empty");
+    mapEl.textContent = "Brak danych GPS dla tego treningu";
+  }
+}
+
+async function loadActivityDetail(id, container) {
+  if (!activityDetailCache[id]) {
+    activityDetailCache[id] = await api(`/api/activities/${id}`);
+  }
+  const detail = activityDetailCache[id];
+
+  container.innerHTML = `
+    <div class="detail-content">
+      <div>Aerobic decoupling: ${decouplingBadge(detail.decoupling_pct)}</div>
+      ${zoneMiniBar(detail.hr_zones)}
+      ${lapsTable(detail.laps)}
+      <div class="track-map" id="map-${id}"></div>
+    </div>
+  `;
+
+  loadTrackMap(id);
+}
+
+async function loadActivities() {
+  const limitValue = $("#activities-limit").value;
+  const limit = limitValue === "all" ? 0 : limitValue;
+  const data = await api(`/api/activities?limit=${limit}`);
+
+  const tbody = $("#activities-table tbody");
+  tbody.innerHTML = "";
+
+  data.activities.forEach((a) => {
+    const row = document.createElement("tr");
+    row.className = "activity-row";
+    row.innerHTML = `
+      <td class="expand-toggle">▶</td>
+      <td>${fmtDate(a.date)}</td>
+      <td>${a.distance_km} km</td>
+      <td>${a.duration_min} min</td>
+      <td>${a.avg_pace_per_km ?? "—"}</td>
+      <td>${a.avg_hr ?? "—"}</td>
+      <td>${a.cadence_spm ?? "—"}</td>
+      <td>${a.aerobic_te != null ? a.aerobic_te.toFixed(1) : "—"}</td>
+    `;
+
+    const detailRow = document.createElement("tr");
+    detailRow.className = "detail-row hidden";
+    const detailCell = document.createElement("td");
+    detailCell.colSpan = 8;
+    detailCell.innerHTML = `<div class="detail-loading">Ładowanie…</div>`;
+    detailRow.appendChild(detailCell);
+
+    row.addEventListener("click", async () => {
+      const opening = detailRow.classList.contains("hidden");
+      row.classList.toggle("expanded", opening);
+      detailRow.classList.toggle("hidden", !opening);
+      if (opening) await loadActivityDetail(a.id, detailCell);
+    });
+
+    tbody.appendChild(row);
+    tbody.appendChild(detailRow);
+  });
+}
+
+$("#activities-limit").addEventListener("change", loadActivities);
+
+// --- Global (sync, export) -----------------------------------------------
+
 async function refreshAll() {
-  await Promise.all([loadSummaryCards(), loadRollingChart(), loadPaceHrChart(), loadAggregate(), loadActivities()]);
+  await Promise.all([
+    loadSummaryCards(),
+    loadRollingChart(),
+    loadPaceHrChart(),
+    loadEfficiencyChart(),
+    loadZonesChart(),
+    loadWellnessChart(),
+    loadAggregate(),
+  ]);
+  if (loadedTabs.has("activities")) {
+    activityDetailCache = {};
+    await loadActivities();
+  }
 }
 
 $("#sync-btn").addEventListener("click", async () => {

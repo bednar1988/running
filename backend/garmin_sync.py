@@ -8,6 +8,7 @@ field and falls back to None rather than crashing the whole sync on one unexpect
 
 import logging
 import os
+import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
@@ -323,3 +324,25 @@ def run_full_sync(db: Session) -> dict:
     n_activities = sync_activities(db)
     n_wellness = sync_daily_wellness(db)
     return {"new_activities": n_activities, "wellness_days_synced": n_wellness}
+
+
+def fetch_activity_track(activity_id: int) -> Optional[list[tuple[float, float]]]:
+    """Fetch the GPS track for one activity straight from Garmin (not stored in the DB — only
+    needed when a user expands a training's map, so it's cheaper to fetch on demand than to
+    add a table and backfill it for every past activity)."""
+    client = get_client()
+    raw = client.download_activity(str(activity_id), dl_fmt=Garmin.ActivityDownloadFormat.GPX)
+    if not raw:
+        return None
+
+    root = ET.fromstring(raw)
+    points = []
+    for elem in root.iter():
+        if elem.tag.rsplit("}", 1)[-1] != "trkpt":
+            continue
+        lat = elem.get("lat")
+        lon = elem.get("lon")
+        if lat is not None and lon is not None:
+            points.append((float(lat), float(lon)))
+
+    return points or None

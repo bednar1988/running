@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 import aggregates
 import export as export_module
+import garmin_sync
 from db import get_session, init_db
 from garmin_sync import run_full_sync
 from models import Activity, HrZone, Lap
@@ -46,13 +47,13 @@ def sync(db: Session = Depends(get_session)):
 def list_activities(
     start: Optional[date] = None,
     end: Optional[date] = None,
-    limit: int = 50,
+    limit: int = 20,  # <=0 means "all" (frontend sends 0 for its "Wszystkie" option)
     offset: int = 0,
     db: Session = Depends(get_session),
 ):
     activities = aggregates.fetch_activities(db, start, end)
     activities = sorted(activities, key=lambda a: a.start_time_local, reverse=True)
-    page = activities[offset : offset + limit]
+    page = activities[offset:] if limit <= 0 else activities[offset : offset + limit]
     return {
         "total": len(activities),
         "activities": [
@@ -104,6 +105,7 @@ def activity_detail(activity_id: int, db: Session = Depends(get_session)):
         "anaerobic_te": aggregates.round_opt(activity.anaerobic_te),
         "anaerobic_te_label": activity.anaerobic_te_label,
         "vo2max_estimate": activity.vo2max_estimate,
+        "decoupling_pct": aggregates.compute_decoupling(laps),
         "laps": [
             {
                 "lap_index": lap.lap_index,
@@ -159,6 +161,39 @@ def pace_hr(
     db: Session = Depends(get_session),
 ):
     return aggregates.pace_hr_progression(db, weeks, activity_type, end)
+
+
+@app.get("/api/progression/efficiency-factor")
+def efficiency_factor(
+    weeks: int = 26,
+    activity_type: Optional[str] = "running",
+    end: Optional[date] = None,
+    db: Session = Depends(get_session),
+):
+    return aggregates.efficiency_factor_progression(db, weeks, activity_type, end)
+
+
+@app.get("/api/hr-zones/weekly")
+def hr_zones_weekly(
+    weeks: int = 12,
+    end: Optional[date] = None,
+    db: Session = Depends(get_session),
+):
+    return aggregates.hr_zone_weekly_breakdown(db, weeks, end)
+
+
+@app.get("/api/activities/{activity_id}/track")
+def activity_track(activity_id: int, db: Session = Depends(get_session)):
+    if not db.get(Activity, activity_id):
+        raise HTTPException(status_code=404, detail="Activity not found")
+    try:
+        points = garmin_sync.fetch_activity_track(activity_id)
+    except Exception as e:
+        logger.exception("Failed to fetch GPS track for activity %s", activity_id)
+        raise HTTPException(status_code=502, detail=f"Garmin track fetch failed: {e}")
+    if not points:
+        raise HTTPException(status_code=404, detail="No GPS data for this activity")
+    return {"points": points}
 
 
 @app.get("/api/wellness")

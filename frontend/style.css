@@ -62,10 +62,45 @@ button#copy-btn, button#export-btn {
   font-size: 0.85rem;
 }
 
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--panel-border);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.tab-btn {
+  background: transparent;
+  color: var(--text-dim);
+  border: none;
+  border-radius: 0;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-btn:hover {
+  color: var(--text);
+}
+
+.tab-btn.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.hidden {
+  display: none;
+}
+
 main {
   max-width: 1000px;
   margin: 0 auto;
   padding: 1.5rem;
+}
+
+.tab-panel {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -172,6 +207,88 @@ textarea {
   padding: 0.75rem;
   resize: vertical;
 }
+
+/* Activities tab — expandable rows */
+.activity-row {
+  cursor: pointer;
+}
+
+.activity-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.expand-toggle {
+  width: 1.5rem;
+  color: var(--text-dim);
+  transition: transform 0.15s ease;
+}
+
+.activity-row.expanded .expand-toggle {
+  transform: rotate(90deg);
+}
+
+.detail-row td {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.detail-loading {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.decoupling-badge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.decoupling-badge.good { background: rgba(46, 196, 182, 0.2); color: var(--accent-2); }
+.decoupling-badge.ok { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+.decoupling-badge.high { background: rgba(230, 57, 70, 0.2); color: var(--danger); }
+.decoupling-badge.unknown { background: rgba(255, 255, 255, 0.08); color: var(--text-dim); }
+
+.track-map {
+  height: 220px;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+}
+
+.track-map.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  background: var(--bg);
+}
+
+.zone-mini-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.zone-mini-bar span {
+  height: 100%;
+}
+
+.zone-1 { background: #2ec4b6; }
+.zone-2 { background: #4caf50; }
+.zone-3 { background: #ffc107; }
+.zone-4 { background: #ff6b35; }
+.zone-5 { background: #e63946; }
 
 @media (prefers-color-scheme: light) {
   :root {

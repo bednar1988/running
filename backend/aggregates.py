@@ -105,6 +105,32 @@ def rolling_weekly_volume(db: Session, window_days: int = 7, start: Optional[dat
     return result
 
 
+def compute_decoupling(laps: list) -> Optional[float]:
+    """Pw:Hr-style aerobic decoupling from lap splits: % drop in Efficiency Factor (speed/HR)
+    from the first half of a run to the second half. Positive = fatigue / less aerobic
+    durability. Needs at least 4 laps with HR data to split meaningfully."""
+    valid = [lap for lap in laps if lap.avg_hr and lap.distance_m and lap.duration_s]
+    if len(valid) < 4:
+        return None
+
+    half = len(valid) // 2
+    efs = []
+    for half_laps in (valid[:half], valid[half:]):
+        distance_m = sum(lap.distance_m for lap in half_laps)
+        duration_s = sum(lap.duration_s for lap in half_laps)
+        hr_weighted = sum(lap.avg_hr * lap.distance_m for lap in half_laps)
+        if not distance_m or not duration_s or not hr_weighted:
+            return None
+        speed_m_per_min = distance_m / duration_s * 60
+        avg_hr = hr_weighted / distance_m
+        efs.append(speed_m_per_min / avg_hr)
+
+    ef_first, ef_second = efs
+    if not ef_first:
+        return None
+    return round((ef_first - ef_second) / ef_first * 100, 1)
+
+
 def pace_hr_progression(
     db: Session,
     weeks: int = 12,
@@ -140,6 +166,70 @@ def pace_hr_progression(
                 "distance_km": round(b["distance_m"] / 1000, 2),
             }
         )
+    return result
+
+
+def efficiency_factor_progression(
+    db: Session,
+    weeks: int = 26,
+    activity_type: Optional[str] = "running",
+    end: Optional[date] = None,
+) -> list[dict]:
+    """Weekly Efficiency Factor (speed per heartbeat) — same aerobic-adaptation signal as
+    pace_hr_progression but as a single rising-is-better number instead of two axes."""
+    end = end or date.today()
+    start = end - timedelta(weeks=weeks)
+
+    activities = fetch_activities(db, start, end)
+    if activity_type:
+        activities = [a for a in activities if a.activity_type == activity_type]
+    activities = [a for a in activities if a.avg_hr and a.distance_m and a.duration_s]
+
+    buckets: dict[str, dict] = defaultdict(lambda: {"distance_m": 0.0, "duration_s": 0.0, "hr_weighted": 0.0})
+    for a in activities:
+        year, week, _ = a.start_time_local.date().isocalendar()
+        key = f"{year}-W{week:02d}"
+        buckets[key]["distance_m"] += a.distance_m
+        buckets[key]["duration_s"] += a.duration_s
+        buckets[key]["hr_weighted"] += a.avg_hr * a.distance_m
+
+    result = []
+    for key in sorted(buckets.keys()):
+        b = buckets[key]
+        avg_hr = b["hr_weighted"] / b["distance_m"]
+        speed_m_per_min = b["distance_m"] / b["duration_s"] * 60
+        result.append(
+            {
+                "week": key,
+                "ef": round(speed_m_per_min / avg_hr, 3),
+                "distance_km": round(b["distance_m"] / 1000, 2),
+            }
+        )
+    return result
+
+
+def hr_zone_weekly_breakdown(db: Session, weeks: int = 12, end: Optional[date] = None) -> list[dict]:
+    """Weekly time-in-zone (minutes) — verifies training is actually mostly Zone 1-2, not
+    'grey zone' 3, for aerobic base building."""
+    end = end or date.today()
+    start = end - timedelta(weeks=weeks)
+    activities = fetch_activities(db, start, end)
+
+    buckets: dict[str, dict[int, float]] = defaultdict(lambda: defaultdict(float))
+    for a in activities:
+        year, week, _ = a.start_time_local.date().isocalendar()
+        key = f"{year}-W{week:02d}"
+        for zone in a.hr_zones:
+            if zone.time_in_zone_s and zone.zone_number:
+                buckets[key][zone.zone_number] += zone.time_in_zone_s
+
+    result = []
+    for key in sorted(buckets.keys()):
+        zones = buckets[key]
+        row = {"week": key}
+        for z in range(1, 6):
+            row[f"zone_{z}_min"] = round(zones.get(z, 0.0) / 60, 1)
+        result.append(row)
     return result
 
 

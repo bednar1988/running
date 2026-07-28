@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Running Tracker</title>
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -15,69 +16,118 @@
   </div>
 </header>
 
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="overview">Przegląd</button>
+  <button class="tab-btn" data-tab="activities">Treningi</button>
+  <button class="tab-btn" data-tab="export">Eksport</button>
+</nav>
+
 <main>
-  <section class="cards" id="summary-cards"></section>
 
-  <section class="panel">
-    <div class="panel-header">
-      <h2>Krocząca objętość tygodniowa</h2>
-      <span class="hint">Suma dystansu z ostatnich 7 dni każdego dnia — pilnuj reguły max +10%/tydz.</span>
-    </div>
-    <canvas id="rolling-chart" height="90"></canvas>
-  </section>
+  <section class="tab-panel" data-tab="overview">
+    <section class="cards" id="summary-cards"></section>
 
-  <section class="panel">
-    <div class="panel-header">
-      <h2>Progresja: tempo → tętno</h2>
-      <span class="hint">Średnie tempo i średnie tętno per tydzień — spadające tętno przy tym samym tempie = adaptacja aerobowa</span>
-    </div>
-    <canvas id="pacehr-chart" height="90"></canvas>
-  </section>
-
-  <section class="panel">
-    <div class="panel-header">
-      <h2>Agregaty kalendarzowe</h2>
-      <div class="controls">
-        <select id="agg-period">
-          <option value="week">Tydzień</option>
-          <option value="month" selected>Miesiąc</option>
-          <option value="year">Rok</option>
-        </select>
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Krocząca objętość tygodniowa</h2>
+        <span class="hint">Suma dystansu z ostatnich 7 dni każdego dnia — pilnuj reguły max +10%/tydz.</span>
       </div>
-    </div>
-    <canvas id="agg-chart" height="80"></canvas>
-    <table id="agg-table">
-      <thead><tr><th>Okres</th><th>Dystans (km)</th><th>Czas (h)</th><th>Śr. tempo</th><th>Liczba treningów</th></tr></thead>
-      <tbody></tbody>
-    </table>
+      <canvas id="rolling-chart" height="90"></canvas>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Progresja: tempo → tętno</h2>
+        <span class="hint">Średnie tempo i średnie tętno per tydzień — spadające tętno przy tym samym tempie = adaptacja aerobowa</span>
+      </div>
+      <canvas id="pacehr-chart" height="90"></canvas>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Efficiency Factor</h2>
+        <span class="hint">Prędkość na uderzenie serca — ten sam sygnał co wyżej, jako jedna rosnąca linia</span>
+      </div>
+      <canvas id="ef-chart" height="70"></canvas>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Rozkład czasu w strefach tętna</h2>
+        <span class="hint">Tygodniowo — sprawdź, czy faktycznie trenujesz głównie w strefie 1–2, a nie "szarej strefie" 3</span>
+      </div>
+      <canvas id="zones-chart" height="90"></canvas>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Tętno spoczynkowe i HRV</h2>
+        <span class="hint">Najwcześniejszy sygnał regeneracji / przetrenowania</span>
+      </div>
+      <canvas id="wellness-chart" height="90"></canvas>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Agregaty kalendarzowe</h2>
+        <div class="controls">
+          <select id="agg-period">
+            <option value="week">Tydzień</option>
+            <option value="month" selected>Miesiąc</option>
+            <option value="year">Rok</option>
+          </select>
+        </div>
+      </div>
+      <canvas id="agg-chart" height="80"></canvas>
+      <table id="agg-table">
+        <thead><tr><th>Okres</th><th>Dystans (km)</th><th>Czas (h)</th><th>Śr. tempo</th><th>Liczba treningów</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
   </section>
 
-  <section class="panel">
-    <div class="panel-header">
-      <h2>Ostatnie treningi</h2>
-    </div>
-    <table id="activities-table">
-      <thead><tr><th>Data</th><th>Dystans</th><th>Czas</th><th>Tempo</th><th>Śr. tętno</th><th>Kadencja</th><th>TE aer.</th></tr></thead>
-      <tbody></tbody>
-    </table>
+  <section class="tab-panel hidden" data-tab="activities">
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Treningi</h2>
+        <div class="controls">
+          <label>Pokaż
+            <select id="activities-limit">
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="50">50</option>
+              <option value="all">Wszystkie</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <table id="activities-table">
+        <thead><tr><th></th><th>Data</th><th>Dystans</th><th>Czas</th><th>Tempo</th><th>Śr. tętno</th><th>Kadencja</th><th>TE aer.</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
   </section>
 
-  <section class="panel">
-    <div class="panel-header">
-      <h2>Eksport do Claude</h2>
-      <span class="hint">Przetworzony, zwarty JSON — wklej w rozmowę z Claude po interpretację treningu</span>
-    </div>
-    <div class="controls">
-      <label>Od <input type="date" id="export-start"></label>
-      <label>Do <input type="date" id="export-end"></label>
-      <button id="export-btn">Generuj JSON</button>
-      <button id="copy-btn" disabled>Kopiuj</button>
-    </div>
-    <textarea id="export-output" readonly rows="12" placeholder="Kliknij 'Generuj JSON'..."></textarea>
+  <section class="tab-panel hidden" data-tab="export">
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Eksport do Claude</h2>
+        <span class="hint">Przetworzony, zwarty JSON — wklej w rozmowę z Claude po interpretację treningu</span>
+      </div>
+      <div class="controls">
+        <label>Od <input type="date" id="export-start"></label>
+        <label>Do <input type="date" id="export-end"></label>
+        <button id="export-btn">Generuj JSON</button>
+        <button id="copy-btn" disabled>Kopiuj</button>
+      </div>
+      <textarea id="export-output" readonly rows="12" placeholder="Kliknij 'Generuj JSON'..."></textarea>
+    </section>
   </section>
+
 </main>
 
 <script src="/vendor/chart.umd.min.js"></script>
+<script src="/vendor/leaflet/leaflet.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>
