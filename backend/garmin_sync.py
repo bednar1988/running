@@ -40,14 +40,19 @@ def _sync_start_date() -> Optional[date]:
 
 
 def _dig(d: dict, *candidates: str) -> Any:
-    """Try dotted key paths in order (e.g. 'a.b.c'), return the first that resolves, else None."""
+    """Try dotted key paths in order (e.g. 'a.b.0.c', numeric segments index into lists),
+    return the first that resolves to a non-None value, else None."""
     for path in candidates:
         node = d
         for key in path.split("."):
             if isinstance(node, dict) and key in node:
                 node = node[key]
+            elif isinstance(node, list) and key.lstrip("-").isdigit():
+                idx = int(key)
+                node = node[idx] if -len(node) <= idx < len(node) else None
             else:
                 node = None
+            if node is None:
                 break
         if node is not None:
             return node
@@ -269,6 +274,8 @@ def sync_daily_wellness(db: Session) -> int:
         try:
             rhr_raw = client.get_rhr_day(cdate)
             resting_hr = _parse_rhr(rhr_raw)
+            if resting_hr is None:
+                logger.warning("Resting HR parse returned None for %s; raw response: %s", cdate, rhr_raw)
         except Exception:
             logger.exception("Failed to fetch resting HR for %s", cdate)
             resting_hr = None
@@ -276,6 +283,8 @@ def sync_daily_wellness(db: Session) -> int:
         try:
             hrv_raw = client.get_hrv_data(cdate)
             hrv_avg, hrv_status = _parse_hrv(hrv_raw)
+            if hrv_avg is None:
+                logger.warning("HRV parse returned None for %s; raw response: %s", cdate, hrv_raw)
         except Exception:
             logger.exception("Failed to fetch HRV for %s", cdate)
             hrv_avg, hrv_status = None, None
