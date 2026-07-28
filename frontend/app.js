@@ -6,6 +6,12 @@ async function api(path) {
   return res.json();
 }
 
+async function apiPost(path) {
+  const res = await fetch(path, { method: "POST" });
+  if (!res.ok) throw new Error(`${path} -> ${res.status}`);
+  return res.json();
+}
+
 function paceToSeconds(paceStr) {
   if (!paceStr) return null;
   const [m, s] = paceStr.split(":").map(Number);
@@ -292,10 +298,15 @@ async function loadAggregate() {
 
 let activityDetailCache = {};
 
+const DECOUPLING_TOOLTIP =
+  "Aerobic decoupling: o ile spadła efektywność (tempo/tętno) między 1. a 2. połową biegu. " +
+  "<5% = dobra wytrzymałość aerobowa, 5–10% = w porządku, >10% = zbyt duże zmęczenie / tempo za szybkie jak na aktualną bazę.";
+
 function decouplingBadge(pct) {
-  if (pct === null || pct === undefined) return `<span class="decoupling-badge unknown">brak danych</span>`;
+  if (pct === null || pct === undefined)
+    return `<span class="decoupling-badge unknown" title="${DECOUPLING_TOOLTIP} (za mało okrążeń z tętnem, żeby policzyć)">brak danych</span>`;
   const cls = pct < 5 ? "good" : pct <= 10 ? "ok" : "high";
-  return `<span class="decoupling-badge ${cls}">${pct > 0 ? "+" : ""}${pct}%</span>`;
+  return `<span class="decoupling-badge ${cls}" title="${DECOUPLING_TOOLTIP}">${pct > 0 ? "+" : ""}${pct}%</span>`;
 }
 
 function zoneMiniBar(zones) {
@@ -303,10 +314,10 @@ function zoneMiniBar(zones) {
   if (!total) return `<span class="hint">Brak danych o strefach tętna dla tego treningu.</span>`;
   const spans = zones
     .filter((z) => z.time_in_zone_min)
-    .map(
-      (z) =>
-        `<span class="zone-${z.zone_number}" style="width:${(z.time_in_zone_min / total) * 100}%" title="Strefa ${z.zone_number}: ${z.time_in_zone_min} min"></span>`
-    )
+    .map((z) => {
+      const range = z.zone_low_bpm && z.zone_high_bpm ? ` (${z.zone_low_bpm}–${z.zone_high_bpm} bpm)` : "";
+      return `<span class="zone-${z.zone_number}" style="width:${(z.time_in_zone_min / total) * 100}%" title="Strefa ${z.zone_number}${range}: ${z.time_in_zone_min} min"></span>`;
+    })
     .join("");
   return `<div class="zone-mini-bar">${spans}</div>`;
 }
@@ -338,6 +349,18 @@ async function loadTrackMap(id) {
   }
 }
 
+function markRowIgnored(id, isIgnored) {
+  const row = document.querySelector(`tr.activity-row[data-id="${id}"]`);
+  if (!row) return;
+  row.classList.toggle("ignored-row", isIgnored);
+  const label = row.querySelector(".ignored-label");
+  if (isIgnored && !label) {
+    row.children[1].insertAdjacentHTML("beforeend", ` <span class="ignored-label">ignorowany</span>`);
+  } else if (!isIgnored && label) {
+    label.remove();
+  }
+}
+
 async function loadActivityDetail(id, container) {
   if (!activityDetailCache[id]) {
     activityDetailCache[id] = await api(`/api/activities/${id}`);
@@ -346,12 +369,23 @@ async function loadActivityDetail(id, container) {
 
   container.innerHTML = `
     <div class="detail-content">
+      <div class="detail-actions">
+        <button class="ignore-toggle-btn">${detail.is_ignored ? "Przywróć trening" : "Ignoruj trening (zła jakość tętna)"}</button>
+        ${detail.is_ignored ? '<span class="hint">Pomijany w metrykach opartych o tętno — nadal liczy się do dystansu/czasu.</span>' : ""}
+      </div>
       <div>Aerobic decoupling: ${decouplingBadge(detail.decoupling_pct)}</div>
       ${zoneMiniBar(detail.hr_zones)}
       ${lapsTable(detail.laps)}
       <div class="track-map" id="map-${id}"></div>
     </div>
   `;
+
+  container.querySelector(".ignore-toggle-btn").addEventListener("click", async () => {
+    const result = await apiPost(`/api/activities/${id}/toggle-ignore`);
+    activityDetailCache[id].is_ignored = result.is_ignored;
+    markRowIgnored(id, result.is_ignored);
+    await loadActivityDetail(id, container);
+  });
 
   loadTrackMap(id);
 }
@@ -366,10 +400,11 @@ async function loadActivities() {
 
   data.activities.forEach((a) => {
     const row = document.createElement("tr");
-    row.className = "activity-row";
+    row.className = "activity-row" + (a.is_ignored ? " ignored-row" : "");
+    row.dataset.id = a.id;
     row.innerHTML = `
       <td class="expand-toggle">▶</td>
-      <td>${fmtDate(a.date)}</td>
+      <td>${fmtDate(a.date)}${a.is_ignored ? ' <span class="ignored-label">ignorowany</span>' : ""}</td>
       <td>${a.distance_km} km</td>
       <td>${a.duration_min} min</td>
       <td>${a.avg_pace_per_km ?? "—"}</td>

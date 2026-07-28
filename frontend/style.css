@@ -106,6 +106,10 @@ main {
   gap: 1.5rem;
 }
 
+.tab-panel.hidden {
+  display: none;
+}
+
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -211,6 +215,30 @@ textarea {
 /* Activities tab — expandable rows */
 .activity-row {
   cursor: pointer;
+}
+
+.activity-row.ignored-row {
+  opacity: 0.5;
+}
+
+.ignored-label {
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+}
+
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ignore-toggle-btn {
+  background: var(--panel-border);
+  color: var(--text);
 }
 
 .activity-row:hover {

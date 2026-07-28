@@ -1,4 +1,5 @@
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Column,
     Date,
@@ -48,6 +49,7 @@ class Activity(Base):
     anaerobic_te_label = Column(String)
     vo2max_estimate = Column(Float)
     synced_at = Column(DateTime, nullable=False)
+    is_ignored = Column(Boolean, nullable=False, default=False, server_default="0")
 
     laps = relationship("Lap", back_populates="activity", cascade="all, delete-orphan")
     hr_zones = relationship("HrZone", back_populates="activity", cascade="all, delete-orphan")

@@ -31,8 +31,19 @@ def _period_key(d: date, period: str) -> str:
     raise ValueError(f"Unknown period: {period}")
 
 
-def fetch_activities(db: Session, start: Optional[date] = None, end: Optional[date] = None) -> list[Activity]:
+def fetch_activities(
+    db: Session,
+    start: Optional[date] = None,
+    end: Optional[date] = None,
+    include_ignored: bool = False,
+) -> list[Activity]:
+    """include_ignored=False (the default) excludes activities flagged via is_ignored — used for
+    anything HR-derived (pace/HR, EF, zone breakdown), since a bad HR source (e.g. watch-wrist
+    instead of chest strap) poisons those. Distance/time-only aggregates (calendar totals, rolling
+    volume) pass include_ignored=True since the user still wants those runs counted toward km."""
     stmt = select(Activity).order_by(Activity.start_time_local.asc())
+    if not include_ignored:
+        stmt = stmt.where(Activity.is_ignored.is_(False))
     if start:
         stmt = stmt.where(Activity.start_time_local >= datetime.combine(start, datetime.min.time()))
     if end:
@@ -42,7 +53,7 @@ def fetch_activities(db: Session, start: Optional[date] = None, end: Optional[da
 
 def calendar_aggregate(db: Session, period: str, start: Optional[date] = None, end: Optional[date] = None) -> list[dict]:
     """Sum distance/time bucketed by calendar week/month/year (not rolling windows)."""
-    activities = fetch_activities(db, start, end)
+    activities = fetch_activities(db, start, end, include_ignored=True)
     buckets: dict[str, dict] = defaultdict(lambda: {"distance_m": 0.0, "duration_s": 0.0, "count": 0})
 
     for a in activities:
@@ -69,7 +80,7 @@ def calendar_aggregate(db: Session, period: str, start: Optional[date] = None, e
 def rolling_weekly_volume(db: Session, window_days: int = 7, start: Optional[date] = None, end: Optional[date] = None) -> list[dict]:
     """Daily rolling sum of distance over the trailing `window_days`, plus % change vs the
     prior equal-length window (the "max 10% weekly progression" check)."""
-    activities = fetch_activities(db, None, end)
+    activities = fetch_activities(db, None, end, include_ignored=True)
     if not activities:
         return []
 

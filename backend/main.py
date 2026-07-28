@@ -51,7 +51,9 @@ def list_activities(
     offset: int = 0,
     db: Session = Depends(get_session),
 ):
-    activities = aggregates.fetch_activities(db, start, end)
+    # include_ignored=True: this is a management view (toggle ignore/un-ignore here), unlike
+    # the HR-derived aggregates which exclude ignored activities by default.
+    activities = aggregates.fetch_activities(db, start, end, include_ignored=True)
     activities = sorted(activities, key=lambda a: a.start_time_local, reverse=True)
     page = activities[offset:] if limit <= 0 else activities[offset : offset + limit]
     return {
@@ -70,6 +72,7 @@ def list_activities(
                 "cadence_spm": a.avg_cadence_spm,
                 "aerobic_te": aggregates.round_opt(a.aerobic_te),
                 "elevation_gain_m": a.elevation_gain_m,
+                "is_ignored": a.is_ignored,
             }
             for a in page
         ],
@@ -105,6 +108,7 @@ def activity_detail(activity_id: int, db: Session = Depends(get_session)):
         "anaerobic_te": aggregates.round_opt(activity.anaerobic_te),
         "anaerobic_te_label": activity.anaerobic_te_label,
         "vo2max_estimate": activity.vo2max_estimate,
+        "is_ignored": activity.is_ignored,
         "decoupling_pct": aggregates.compute_decoupling(laps),
         "laps": [
             {
@@ -129,6 +133,19 @@ def activity_detail(activity_id: int, db: Session = Depends(get_session)):
             for z in zones
         ],
     }
+
+
+@app.post("/api/activities/{activity_id}/toggle-ignore")
+def toggle_ignore(activity_id: int, db: Session = Depends(get_session)):
+    """Flip is_ignored — for runs with bad HR data (e.g. watch-wrist instead of chest strap)
+    that should still count toward distance/time totals but be excluded from anything
+    HR-derived (pace/HR progression, Efficiency Factor, zone breakdown)."""
+    activity = db.get(Activity, activity_id)
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    activity.is_ignored = not activity.is_ignored
+    db.commit()
+    return {"id": activity.id, "is_ignored": activity.is_ignored}
 
 
 @app.get("/api/aggregate")
