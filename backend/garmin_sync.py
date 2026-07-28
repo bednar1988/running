@@ -66,6 +66,11 @@ def get_client() -> Garmin:
     return client
 
 
+def _round_te(value: Optional[float]) -> Optional[float]:
+    """Garmin's training-effect floats arrive with float32 noise (e.g. 3.0999999046325684)."""
+    return round(value, 1) if value is not None else None
+
+
 def _parse_activity(raw: dict) -> dict:
     activity_type = _dig(raw, "activityType.typeKey") or "unknown"
     start_local_raw = _dig(raw, "startTimeLocal")
@@ -89,9 +94,9 @@ def _parse_activity(raw: dict) -> dict:
         "elevation_gain_m": _dig(raw, "elevationGain"),
         "elevation_loss_m": _dig(raw, "elevationLoss"),
         "calories": _dig(raw, "calories"),
-        "aerobic_te": _dig(raw, "aerobicTrainingEffect"),
+        "aerobic_te": _round_te(_dig(raw, "aerobicTrainingEffect")),
         "aerobic_te_label": _dig(raw, "aerobicTrainingEffectMessage"),
-        "anaerobic_te": _dig(raw, "anaerobicTrainingEffect"),
+        "anaerobic_te": _round_te(_dig(raw, "anaerobicTrainingEffect")),
         "anaerobic_te_label": _dig(raw, "anaerobicTrainingEffectMessage"),
         "vo2max_estimate": _dig(raw, "vO2MaxValue"),
         "synced_at": datetime.utcnow(),

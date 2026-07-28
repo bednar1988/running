@@ -67,7 +67,7 @@ def list_activities(
                 "avg_hr": a.avg_hr,
                 "max_hr": a.max_hr,
                 "cadence_spm": a.avg_cadence_spm,
-                "aerobic_te": a.aerobic_te,
+                "aerobic_te": aggregates.round_opt(a.aerobic_te),
                 "elevation_gain_m": a.elevation_gain_m,
             }
             for a in page
@@ -99,9 +99,9 @@ def activity_detail(activity_id: int, db: Session = Depends(get_session)):
         "elevation_gain_m": activity.elevation_gain_m,
         "elevation_loss_m": activity.elevation_loss_m,
         "calories": activity.calories,
-        "aerobic_te": activity.aerobic_te,
+        "aerobic_te": aggregates.round_opt(activity.aerobic_te),
         "aerobic_te_label": activity.aerobic_te_label,
-        "anaerobic_te": activity.anaerobic_te,
+        "anaerobic_te": aggregates.round_opt(activity.anaerobic_te),
         "anaerobic_te_label": activity.anaerobic_te_label,
         "vo2max_estimate": activity.vo2max_estimate,
         "laps": [

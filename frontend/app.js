@@ -12,6 +12,22 @@ function paceToSeconds(paceStr) {
   return m * 60 + s;
 }
 
+function secondsToPace(sec) {
+  if (sec === null || sec === undefined || Number.isNaN(sec)) return "—";
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+// Local-date (not UTC) YYYY-MM-DD — toISOString() shifts to UTC and can land on the wrong
+// day/month near local midnight, which broke the week/month/year boundary queries below.
+function isoLocal(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function fmtDate(iso) {
   return new Date(iso).toLocaleDateString("pl-PL", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
@@ -24,12 +40,11 @@ async function loadSummaryCards() {
   startOfWeek.setDate(today.getDate() - today.getDay() + 1);
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const startOfYear = new Date(today.getFullYear(), 0, 1);
-  const iso = (d) => d.toISOString().slice(0, 10);
 
   const [week, month, year, rolling] = await Promise.all([
-    api(`/api/aggregate?period=week&start=${iso(startOfWeek)}`),
-    api(`/api/aggregate?period=month&start=${iso(startOfMonth)}`),
-    api(`/api/aggregate?period=year&start=${iso(startOfYear)}`),
+    api(`/api/aggregate?period=week&start=${isoLocal(startOfWeek)}`),
+    api(`/api/aggregate?period=month&start=${isoLocal(startOfMonth)}`),
+    api(`/api/aggregate?period=year&start=${isoLocal(startOfYear)}`),
     api(`/api/rolling-volume?window_days=7`),
   ]);
 
@@ -37,10 +52,11 @@ async function loadSummaryCards() {
   const pctChange = lastRolling?.pct_change_vs_prior_window;
   const warn = pctChange !== null && pctChange !== undefined && pctChange > 10;
 
+  // .at(-1): the most recent (current) bucket — buckets are sorted ascending by period key.
   const cards = [
-    { label: "Ten tydzień", value: `${week[0]?.distance_km ?? 0} km` },
-    { label: "Ten miesiąc", value: `${month[0]?.distance_km ?? 0} km` },
-    { label: "Ten rok", value: `${year[0]?.distance_km ?? 0} km` },
+    { label: "Ten tydzień", value: `${week.at(-1)?.distance_km ?? 0} km` },
+    { label: "Ten miesiąc", value: `${month.at(-1)?.distance_km ?? 0} km` },
+    { label: "Ten rok", value: `${year.at(-1)?.distance_km ?? 0} km` },
     {
       label: "7d rolling vs poprz. 7d",
       value: pctChange !== null && pctChange !== undefined ? `${pctChange > 0 ? "+" : ""}${pctChange}%` : "—",
@@ -95,7 +111,7 @@ async function loadPaceHrChart() {
       labels: data.map((d) => d.week),
       datasets: [
         {
-          label: "Śr. tempo (s/km)",
+          label: "Śr. tempo",
           data: data.map((d) => paceToSeconds(d.avg_pace_per_km)),
           borderColor: "#2ec4b6",
           yAxisID: "pace",
@@ -112,17 +128,30 @@ async function loadPaceHrChart() {
     },
     options: {
       scales: {
+        // reverse: true so fewer seconds/km (faster pace) plots higher — a rising line means
+        // running faster, matching how the HR axis reads (rising = higher, more effort).
         pace: {
           type: "linear",
           position: "left",
           reverse: true,
-          title: { display: true, text: "s/km (niżej = szybciej)" },
+          title: { display: true, text: "Tempo (mm:ss/km, wyżej = szybciej)" },
+          ticks: { callback: (value) => secondsToPace(value) },
         },
         hr: {
           type: "linear",
           position: "right",
           grid: { drawOnChartArea: false },
-          title: { display: true, text: "bpm" },
+          title: { display: true, text: "Tętno (bpm)" },
+        },
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (ctx) =>
+              ctx.dataset.yAxisID === "pace"
+                ? `${ctx.dataset.label}: ${secondsToPace(ctx.parsed.y)}/km`
+                : `${ctx.dataset.label}: ${ctx.parsed.y}`,
+          },
         },
       },
     },
@@ -159,7 +188,7 @@ async function loadActivities() {
   $("#activities-table tbody").innerHTML = data.activities
     .map(
       (a) =>
-        `<tr><td>${fmtDate(a.date)}</td><td>${a.distance_km} km</td><td>${a.duration_min} min</td><td>${a.avg_pace_per_km ?? "—"}</td><td>${a.avg_hr ?? "—"}</td><td>${a.cadence_spm ?? "—"}</td><td>${a.aerobic_te ?? "—"}</td></tr>`
+        `<tr><td>${fmtDate(a.date)}</td><td>${a.distance_km} km</td><td>${a.duration_min} min</td><td>${a.avg_pace_per_km ?? "—"}</td><td>${a.avg_hr ?? "—"}</td><td>${a.cadence_spm ?? "—"}</td><td>${a.aerobic_te != null ? a.aerobic_te.toFixed(1) : "—"}</td></tr>`
     )
     .join("");
 }

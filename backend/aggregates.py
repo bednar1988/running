@@ -8,6 +8,11 @@ from sqlalchemy.orm import Session
 from models import Activity, DailyWellness
 
 
+def round_opt(value: Optional[float], ndigits: int = 1) -> Optional[float]:
+    """Garmin's training-effect floats arrive with float32 noise (e.g. 3.0999999046325684)."""
+    return round(value, ndigits) if value is not None else None
+
+
 def format_pace(seconds_per_km: Optional[float]) -> Optional[str]:
     if seconds_per_km is None:
         return None
