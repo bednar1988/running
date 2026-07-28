@@ -124,9 +124,18 @@ def _parse_dt(value: Optional[str]) -> Optional[datetime]:
 def _parse_laps(activity_id: int, raw: dict) -> list[dict]:
     lap_dtos = _dig(raw, "lapDTOs") or []
     laps = []
+    any_cadence = False
     for idx, lap in enumerate(lap_dtos, start=1):
         duration_s = _dig(lap, "movingDuration", "duration") or 0.0
         distance_m = _dig(lap, "distance") or 0.0
+        cadence = _dig(
+            lap,
+            "averageRunningCadenceInStepsPerMinute",
+            "averageRunCadence",
+            "avgRunCadence",
+            "averageBikingCadenceInRevPerMinute",
+        )
+        any_cadence = any_cadence or cadence is not None
         laps.append(
             {
                 "activity_id": activity_id,
@@ -136,11 +145,32 @@ def _parse_laps(activity_id: int, raw: dict) -> list[dict]:
                 "avg_pace_s_per_km": (duration_s / distance_m * 1000) if distance_m else None,
                 "avg_hr": _dig(lap, "averageHR"),
                 "max_hr": _dig(lap, "maxHR"),
-                "avg_cadence_spm": _dig(lap, "averageRunningCadenceInStepsPerMinute"),
+                "avg_cadence_spm": cadence,
                 "elevation_gain_m": _dig(lap, "elevationGain"),
             }
         )
+
+    if lap_dtos and not any_cadence:
+        logger.warning(
+            "No cadence field matched any candidate key on activity %s laps; raw first lap: %s",
+            activity_id,
+            lap_dtos[0],
+        )
+
     return laps
+
+
+def resync_laps(activity_id: int, db: Session) -> int:
+    """Re-fetch and overwrite laps for one already-synced activity — used to pick up a field-
+    mapping fix (like the cadence key above) without wiping/re-pulling the whole activity."""
+    client = get_client()
+    raw = client.get_activity_splits(str(activity_id))
+    db.query(Lap).filter(Lap.activity_id == activity_id).delete()
+    laps = _parse_laps(activity_id, raw)
+    for lap in laps:
+        db.add(Lap(**lap))
+    db.commit()
+    return len(laps)
 
 
 def _parse_hr_zones(activity_id: int, raw: Any) -> list[dict]:

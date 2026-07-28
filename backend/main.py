@@ -148,6 +148,18 @@ def toggle_ignore(activity_id: int, db: Session = Depends(get_session)):
     return {"id": activity.id, "is_ignored": activity.is_ignored}
 
 
+@app.post("/api/activities/{activity_id}/resync-laps")
+def resync_laps(activity_id: int, db: Session = Depends(get_session)):
+    if not db.get(Activity, activity_id):
+        raise HTTPException(status_code=404, detail="Activity not found")
+    try:
+        count = garmin_sync.resync_laps(activity_id, db)
+    except Exception as e:
+        logger.exception("Failed to resync laps for activity %s", activity_id)
+        raise HTTPException(status_code=502, detail=f"Garmin lap fetch failed: {e}")
+    return {"id": activity_id, "laps": count}
+
+
 @app.get("/api/aggregate")
 def aggregate(
     period: str = "week",
