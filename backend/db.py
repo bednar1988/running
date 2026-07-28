@@ -31,6 +31,9 @@ def _migrate() -> None:
         if "is_ignored" not in cols:
             conn.exec_driver_sql("ALTER TABLE activities ADD COLUMN is_ignored BOOLEAN NOT NULL DEFAULT 0")
             conn.commit()
+        if "track_points_json" not in cols:
+            conn.exec_driver_sql("ALTER TABLE activities ADD COLUMN track_points_json TEXT")
+            conn.commit()
 
 
 def get_session():

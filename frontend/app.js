@@ -371,7 +371,6 @@ async function loadActivityDetail(id, container) {
     <div class="detail-content">
       <div class="detail-actions">
         <button class="ignore-toggle-btn">${detail.is_ignored ? "Przywróć trening" : "Ignoruj trening (zła jakość tętna)"}</button>
-        <button class="resync-laps-btn">Resynchronizuj okrążenia</button>
         ${detail.is_ignored ? '<span class="hint">Pomijany w metrykach opartych o tętno — nadal liczy się do dystansu/czasu.</span>' : ""}
       </div>
       <div>Aerobic decoupling: ${decouplingBadge(detail.decoupling_pct)}</div>
@@ -386,20 +385,6 @@ async function loadActivityDetail(id, container) {
     activityDetailCache[id].is_ignored = result.is_ignored;
     markRowIgnored(id, result.is_ignored);
     await loadActivityDetail(id, container);
-  });
-
-  container.querySelector(".resync-laps-btn").addEventListener("click", async (e) => {
-    e.target.disabled = true;
-    e.target.textContent = "Synchronizacja...";
-    try {
-      await apiPost(`/api/activities/${id}/resync-laps`);
-      delete activityDetailCache[id];
-      await loadActivityDetail(id, container);
-    } catch (err) {
-      e.target.disabled = false;
-      e.target.textContent = "Resynchronizuj okrążenia";
-      alert("Błąd resynchronizacji okrążeń — sprawdź logi kontenera");
-    }
   });
 
   loadTrackMap(id);

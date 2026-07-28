@@ -6,6 +6,7 @@ field and falls back to None rather than crashing the whole sync on one unexpect
 `_dig` candidate lists against a real account and trim/extend them once confirmed (see README).
 """
 
+import json
 import logging
 import os
 import xml.etree.ElementTree as ET
@@ -77,6 +78,11 @@ def _round_te(value: Optional[float]) -> Optional[float]:
     return round(value, 1) if value is not None else None
 
 
+def _round_cadence(value: Optional[float]) -> Optional[float]:
+    """Cadence (steps/min) is a whole number — Garmin returns it as a noisy float."""
+    return round(value) if value is not None else None
+
+
 def _parse_activity(raw: dict) -> dict:
     activity_type = _dig(raw, "activityType.typeKey") or "unknown"
     start_local_raw = _dig(raw, "startTimeLocal")
@@ -95,8 +101,8 @@ def _parse_activity(raw: dict) -> dict:
         "avg_pace_s_per_km": (duration_s / distance_m * 1000) if distance_m else None,
         "avg_hr": _dig(raw, "averageHR"),
         "max_hr": _dig(raw, "maxHR"),
-        "avg_cadence_spm": _dig(raw, "averageRunningCadenceInStepsPerMinute"),
-        "max_cadence_spm": _dig(raw, "maxRunningCadenceInStepsPerMinute"),
+        "avg_cadence_spm": _round_cadence(_dig(raw, "averageRunningCadenceInStepsPerMinute")),
+        "max_cadence_spm": _round_cadence(_dig(raw, "maxRunningCadenceInStepsPerMinute")),
         "elevation_gain_m": _dig(raw, "elevationGain"),
         "elevation_loss_m": _dig(raw, "elevationLoss"),
         "calories": _dig(raw, "calories"),
@@ -145,7 +151,7 @@ def _parse_laps(activity_id: int, raw: dict) -> list[dict]:
                 "avg_pace_s_per_km": (duration_s / distance_m * 1000) if distance_m else None,
                 "avg_hr": _dig(lap, "averageHR"),
                 "max_hr": _dig(lap, "maxHR"),
-                "avg_cadence_spm": cadence,
+                "avg_cadence_spm": _round_cadence(cadence),
                 "elevation_gain_m": _dig(lap, "elevationGain"),
             }
         )
@@ -357,9 +363,7 @@ def run_full_sync(db: Session) -> dict:
 
 
 def fetch_activity_track(activity_id: int) -> Optional[list[tuple[float, float]]]:
-    """Fetch the GPS track for one activity straight from Garmin (not stored in the DB — only
-    needed when a user expands a training's map, so it's cheaper to fetch on demand than to
-    add a table and backfill it for every past activity)."""
+    """Fetch the GPS track for one activity straight from Garmin."""
     client = get_client()
     raw = client.download_activity(str(activity_id), dl_fmt=Garmin.ActivityDownloadFormat.GPX)
     if not raw:
@@ -376,3 +380,21 @@ def fetch_activity_track(activity_id: int) -> Optional[list[tuple[float, float]]
             points.append((float(lat), float(lon)))
 
     return points or None
+
+
+def get_or_fetch_track(activity_id: int, db: Session) -> Optional[list[tuple[float, float]]]:
+    """Cached wrapper: reads activities.track_points_json if already fetched, else pulls from
+    Garmin once and stores the result (including a cached "no GPS" negative as "[]", so treadmill/
+    indoor activities aren't re-queried on every row expansion)."""
+    activity = db.get(Activity, activity_id)
+    if activity is None:
+        return None
+
+    if activity.track_points_json is not None:
+        points = json.loads(activity.track_points_json)
+        return [tuple(p) for p in points] or None
+
+    points = fetch_activity_track(activity_id)
+    activity.track_points_json = json.dumps(points or [])
+    db.commit()
+    return points

@@ -236,8 +236,7 @@ textarea {
   flex-wrap: wrap;
 }
 
-.ignore-toggle-btn,
-.resync-laps-btn {
+.ignore-toggle-btn {
   background: var(--panel-border);
   color: var(--text);
 }

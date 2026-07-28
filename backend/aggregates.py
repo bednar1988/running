@@ -13,6 +13,11 @@ def round_opt(value: Optional[float], ndigits: int = 1) -> Optional[float]:
     return round(value, ndigits) if value is not None else None
 
 
+def round_int(value: Optional[float]) -> Optional[int]:
+    """Cadence (steps/min) is a whole number — Garmin returns it as a noisy float."""
+    return round(value) if value is not None else None
+
+
 def format_pace(seconds_per_km: Optional[float]) -> Optional[str]:
     if seconds_per_km is None:
         return None

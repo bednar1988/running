@@ -3,7 +3,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from aggregates import fetch_activities, format_pace, pace_hr_progression, round_opt, wellness_series
+from aggregates import fetch_activities, format_pace, pace_hr_progression, round_int, round_opt, wellness_series
 
 
 def export_json(db: Session, start: Optional[date] = None, end: Optional[date] = None) -> dict:
@@ -22,7 +22,7 @@ def export_json(db: Session, start: Optional[date] = None, end: Optional[date] =
             "avg_pace_per_km": format_pace(a.avg_pace_s_per_km),
             "avg_hr": a.avg_hr,
             "max_hr": a.max_hr,
-            "cadence_spm": a.avg_cadence_spm,
+            "cadence_spm": round_int(a.avg_cadence_spm),
             "aerobic_te": round_opt(a.aerobic_te),
             "anaerobic_te": round_opt(a.anaerobic_te),
             "elevation_gain_m": a.elevation_gain_m,

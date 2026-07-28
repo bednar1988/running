@@ -69,7 +69,7 @@ def list_activities(
                 "avg_pace_per_km": aggregates.format_pace(a.avg_pace_s_per_km),
                 "avg_hr": a.avg_hr,
                 "max_hr": a.max_hr,
-                "cadence_spm": a.avg_cadence_spm,
+                "cadence_spm": aggregates.round_int(a.avg_cadence_spm),
                 "aerobic_te": aggregates.round_opt(a.aerobic_te),
                 "elevation_gain_m": a.elevation_gain_m,
                 "is_ignored": a.is_ignored,
@@ -98,8 +98,8 @@ def activity_detail(activity_id: int, db: Session = Depends(get_session)):
         "avg_pace_per_km": aggregates.format_pace(activity.avg_pace_s_per_km),
         "avg_hr": activity.avg_hr,
         "max_hr": activity.max_hr,
-        "avg_cadence_spm": activity.avg_cadence_spm,
-        "max_cadence_spm": activity.max_cadence_spm,
+        "avg_cadence_spm": aggregates.round_int(activity.avg_cadence_spm),
+        "max_cadence_spm": aggregates.round_int(activity.max_cadence_spm),
         "elevation_gain_m": activity.elevation_gain_m,
         "elevation_loss_m": activity.elevation_loss_m,
         "calories": activity.calories,
@@ -118,7 +118,7 @@ def activity_detail(activity_id: int, db: Session = Depends(get_session)):
                 "avg_pace_per_km": aggregates.format_pace(lap.avg_pace_s_per_km),
                 "avg_hr": lap.avg_hr,
                 "max_hr": lap.max_hr,
-                "avg_cadence_spm": lap.avg_cadence_spm,
+                "avg_cadence_spm": aggregates.round_int(lap.avg_cadence_spm),
                 "elevation_gain_m": lap.elevation_gain_m,
             }
             for lap in laps
@@ -216,7 +216,7 @@ def activity_track(activity_id: int, db: Session = Depends(get_session)):
     if not db.get(Activity, activity_id):
         raise HTTPException(status_code=404, detail="Activity not found")
     try:
-        points = garmin_sync.fetch_activity_track(activity_id)
+        points = garmin_sync.get_or_fetch_track(activity_id, db)
     except Exception as e:
         logger.exception("Failed to fetch GPS track for activity %s", activity_id)
         raise HTTPException(status_code=502, detail=f"Garmin track fetch failed: {e}")
