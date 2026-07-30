@@ -9,6 +9,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 import aggregates
@@ -117,6 +118,7 @@ def activity_detail(activity_id: int, db: Session = Depends(get_session)):
         "anaerobic_te_label": activity.anaerobic_te_label,
         "vo2max_estimate": activity.vo2max_estimate,
         "is_ignored": activity.is_ignored,
+        "note": activity.note,
         "decoupling_pct": aggregates.compute_decoupling(laps),
         "weather_temp_c": aggregates.f_to_c(activity.weather_temp_c),
         "weather_humidity_pct": activity.weather_humidity_pct,
@@ -157,6 +159,20 @@ def toggle_ignore(activity_id: int, db: Session = Depends(get_session)):
     activity.is_ignored = not activity.is_ignored
     db.commit()
     return {"id": activity.id, "is_ignored": activity.is_ignored}
+
+
+class NoteUpdate(BaseModel):
+    note: str
+
+
+@app.post("/api/activities/{activity_id}/note")
+def update_note(activity_id: int, body: NoteUpdate, db: Session = Depends(get_session)):
+    activity = db.get(Activity, activity_id)
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    activity.note = body.note or None
+    db.commit()
+    return {"id": activity.id, "note": activity.note}
 
 
 @app.post("/api/activities/{activity_id}/resync-laps")

@@ -39,6 +39,9 @@ def _migrate() -> None:
             conn.exec_driver_sql("ALTER TABLE activities ADD COLUMN weather_humidity_pct INTEGER")
             conn.exec_driver_sql("ALTER TABLE activities ADD COLUMN weather_condition TEXT")
             conn.commit()
+        if "note" not in cols:
+            conn.exec_driver_sql("ALTER TABLE activities ADD COLUMN note TEXT")
+            conn.commit()
 
 
 def get_session():

@@ -8,8 +8,12 @@ async function api(path) {
   return res.json();
 }
 
-async function apiPost(path) {
-  const res = await fetch(path, { method: "POST" });
+async function apiPost(path, body) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
   if (!res.ok) throw new Error(`${path} -> ${res.status}`);
   return res.json();
 }
@@ -34,6 +38,12 @@ function isoLocal(d) {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function escapeHtml(s) {
+  const div = document.createElement("div");
+  div.textContent = s ?? "";
+  return div.innerHTML;
 }
 
 function fmtDate(iso) {
@@ -504,6 +514,16 @@ function section(title, innerHtml) {
   return `<div class="detail-section"><div class="detail-section-title">${title}</div>${innerHtml}</div>`;
 }
 
+function noteSection(note) {
+  return `
+    <textarea class="note-textarea" placeholder="Notatka do tego treningu...">${escapeHtml(note)}</textarea>
+    <div class="note-actions">
+      <button class="note-save-btn">Zapisz</button>
+      <span class="note-status hint"></span>
+    </div>
+  `;
+}
+
 async function loadActivityDetail(id, container) {
   if (!activityDetailCache[id]) {
     activityDetailCache[id] = await api(`/api/activities/${id}`);
@@ -512,6 +532,7 @@ async function loadActivityDetail(id, container) {
 
   container.innerHTML = `
     <div class="detail-content">
+      ${section("Notatka", noteSection(detail.note))}
       ${section("Efekt treningowy", trainingEffectSummary(detail))}
       ${section("Warunki", weatherSummary(detail))}
       ${section("Tętno", `<div>Aerobic decoupling: ${decouplingBadge(detail.decoupling_pct)}</div>${zoneMiniBar(detail.hr_zones)}`)}
@@ -524,6 +545,23 @@ async function loadActivityDetail(id, container) {
       </div>
     </div>
   `;
+
+  container.querySelector(".note-save-btn").addEventListener("click", async () => {
+    const textarea = container.querySelector(".note-textarea");
+    const status = container.querySelector(".note-status");
+    const btn = container.querySelector(".note-save-btn");
+    btn.disabled = true;
+    try {
+      const result = await apiPost(`/api/activities/${id}/note`, { note: textarea.value });
+      activityDetailCache[id].note = result.note;
+      status.textContent = "Zapisano";
+    } catch (e) {
+      status.textContent = "Błąd zapisu";
+    } finally {
+      btn.disabled = false;
+      setTimeout(() => (status.textContent = ""), 1500);
+    }
+  });
 
   container.querySelector(".ignore-toggle-btn").addEventListener("click", async () => {
     const result = await apiPost(`/api/activities/${id}/toggle-ignore`);

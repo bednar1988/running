@@ -56,6 +56,7 @@ class Activity(Base):
     weather_temp_c = Column(Float)  # despite the name, Garmin returns this in Fahrenheit — convert at display time
     weather_humidity_pct = Column(Integer)
     weather_condition = Column(String)
+    note = Column(Text)  # user's own free-text note, not from Garmin
 
     laps = relationship("Lap", back_populates="activity", cascade="all, delete-orphan")
     hr_zones = relationship("HrZone", back_populates="activity", cascade="all, delete-orphan")
