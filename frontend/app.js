@@ -514,14 +514,65 @@ function section(title, innerHtml) {
   return `<div class="detail-section"><div class="detail-section-title">${title}</div>${innerHtml}</div>`;
 }
 
-function noteSection(note) {
-  return `
-    <textarea class="note-textarea" placeholder="Notatka do tego treningu...">${escapeHtml(note)}</textarea>
-    <div class="note-actions">
-      <button class="note-save-btn">Zapisz</button>
-      <span class="note-status hint"></span>
-    </div>
-  `;
+let noteEditing = {};
+
+function noteSectionInner(note, editing) {
+  if (editing) {
+    return `
+      <textarea class="note-textarea" placeholder="Notatka do tego treningu...">${escapeHtml(note)}</textarea>
+      <div class="note-actions">
+        <button class="note-save-btn">Zapisz</button>
+        <button class="note-cancel-btn btn-subtle">Anuluj</button>
+      </div>
+    `;
+  }
+  if (note) {
+    return `
+      <p class="note-text">${escapeHtml(note)}</p>
+      <div class="note-actions">
+        <button class="note-edit-btn btn-subtle">Edytuj</button>
+        <button class="note-delete-btn btn-subtle">Usuń</button>
+      </div>
+    `;
+  }
+  return `<div class="note-actions"><button class="note-add-btn">Dodaj notatkę</button></div>`;
+}
+
+function renderNoteSection(id, container) {
+  const body = container.querySelector(`#note-body-${id}`);
+  if (!body) return;
+  const detail = activityDetailCache[id];
+  body.innerHTML = noteSectionInner(detail.note, !!noteEditing[id]);
+
+  const addBtn = body.querySelector(".note-add-btn");
+  const editBtn = body.querySelector(".note-edit-btn");
+  const cancelBtn = body.querySelector(".note-cancel-btn");
+  const deleteBtn = body.querySelector(".note-delete-btn");
+  const saveBtn = body.querySelector(".note-save-btn");
+
+  const startEditing = () => {
+    noteEditing[id] = true;
+    renderNoteSection(id, container);
+  };
+  if (addBtn) addBtn.addEventListener("click", startEditing);
+  if (editBtn) editBtn.addEventListener("click", startEditing);
+  if (cancelBtn) cancelBtn.addEventListener("click", () => {
+    noteEditing[id] = false;
+    renderNoteSection(id, container);
+  });
+  if (deleteBtn) deleteBtn.addEventListener("click", async () => {
+    const result = await apiPost(`/api/activities/${id}/note`, { note: "" });
+    activityDetailCache[id].note = result.note;
+    noteEditing[id] = false;
+    renderNoteSection(id, container);
+  });
+  if (saveBtn) saveBtn.addEventListener("click", async () => {
+    const textarea = body.querySelector(".note-textarea");
+    const result = await apiPost(`/api/activities/${id}/note`, { note: textarea.value });
+    activityDetailCache[id].note = result.note;
+    noteEditing[id] = false;
+    renderNoteSection(id, container);
+  });
 }
 
 async function loadActivityDetail(id, container) {
@@ -532,7 +583,6 @@ async function loadActivityDetail(id, container) {
 
   container.innerHTML = `
     <div class="detail-content">
-      ${section("Notatka", noteSection(detail.note))}
       ${section("Efekt treningowy", trainingEffectSummary(detail))}
       ${section("Warunki", weatherSummary(detail))}
       ${section("Tętno", `<div>Aerobic decoupling: ${decouplingBadge(detail.decoupling_pct)}</div>${zoneMiniBar(detail.hr_zones)}`)}
@@ -543,25 +593,12 @@ async function loadActivityDetail(id, container) {
       <div class="detail-actions">
         <button class="ignore-toggle-btn" title="Wyklucza trening z metryk liczonych na tętnie (tempo↔tętno, EF, strefy, eksport) — dystans i czas nadal się liczą do agregatów.">${detail.is_ignored ? "Przywróć" : "Ignoruj"}</button>
       </div>
+      <div class="detail-section"><div class="detail-section-title">Notatka</div><div id="note-body-${id}"></div></div>
     </div>
   `;
 
-  container.querySelector(".note-save-btn").addEventListener("click", async () => {
-    const textarea = container.querySelector(".note-textarea");
-    const status = container.querySelector(".note-status");
-    const btn = container.querySelector(".note-save-btn");
-    btn.disabled = true;
-    try {
-      const result = await apiPost(`/api/activities/${id}/note`, { note: textarea.value });
-      activityDetailCache[id].note = result.note;
-      status.textContent = "Zapisano";
-    } catch (e) {
-      status.textContent = "Błąd zapisu";
-    } finally {
-      btn.disabled = false;
-      setTimeout(() => (status.textContent = ""), 1500);
-    }
-  });
+  noteEditing[id] = false;
+  renderNoteSection(id, container);
 
   container.querySelector(".ignore-toggle-btn").addEventListener("click", async () => {
     const result = await apiPost(`/api/activities/${id}/toggle-ignore`);
