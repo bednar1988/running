@@ -602,10 +602,10 @@ async function loadActivityDetail(id, container) {
       ${section("Przewyższenie per okrążenie", `<div class="lap-chart-box small"><canvas id="lap-elevation-${id}"></canvas></div>`)}
       ${section("Okrążenia", lapsTable(detail.laps))}
       ${section("Trasa", `<div class="track-map" id="map-${id}"></div>`)}
+      <div class="detail-section"><div class="detail-section-title">Notatka</div><div id="note-body-${id}"></div></div>
       <div class="detail-actions">
         <button class="ignore-toggle-btn" title="Wyklucza trening z metryk liczonych na tętnie (tempo↔tętno, EF, strefy, eksport) — dystans i czas nadal się liczą do agregatów.">${detail.is_ignored ? "Przywróć" : "Ignoruj"}</button>
       </div>
-      <div class="detail-section"><div class="detail-section-title">Notatka</div><div id="note-body-${id}"></div></div>
     </div>
   `;
 
