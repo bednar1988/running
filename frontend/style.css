@@ -305,12 +305,39 @@ textarea {
 .detail-content {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 .detail-loading {
   color: var(--text-dim);
   font-size: 0.85rem;
+}
+
+.detail-section {
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.detail-section-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.weather-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.weather-icon {
+  font-size: 1.6rem;
+  line-height: 1;
 }
 
 .lap-chart-box {

@@ -387,8 +387,7 @@ function weatherSummary(detail) {
   if (detail.weather_temp_c != null) parts.push(`${Math.round(detail.weather_temp_c)}°C`);
   if (detail.weather_humidity_pct != null) parts.push(`${detail.weather_humidity_pct}% wilgotności`);
   const icon = weatherIcon(detail.weather_condition);
-  if (icon) parts.push(icon);
-  return `<div class="hint">${parts.join(" &middot; ")}</div>`;
+  return `<div class="hint weather-line">${parts.join(" &middot; ")}${icon ? ` <span class="weather-icon">${icon}</span>` : ""}</div>`;
 }
 
 let lapCharts = {};
@@ -427,7 +426,6 @@ function renderLapCharts(id, laps) {
       options: {
         maintainAspectRatio: false,
         scales: {
-          x: { title: { display: true, text: "okrążenie" } },
           pace: { type: "linear", position: "left", reverse: true, ticks: { callback: (v) => secondsToPace(v) } },
           hr: { type: "linear", position: "right", grid: { drawOnChartArea: false } },
         },
@@ -457,7 +455,6 @@ function renderLapCharts(id, laps) {
       options: {
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { x: { title: { display: true, text: "okrążenie" } }, y: { title: { display: true, text: "m" } } },
       },
     });
   }
@@ -502,6 +499,11 @@ function markRowIgnored(id, isIgnored) {
   }
 }
 
+function section(title, innerHtml) {
+  if (!innerHtml) return "";
+  return `<div class="detail-section"><div class="detail-section-title">${title}</div>${innerHtml}</div>`;
+}
+
 async function loadActivityDetail(id, container) {
   if (!activityDetailCache[id]) {
     activityDetailCache[id] = await api(`/api/activities/${id}`);
@@ -510,14 +512,13 @@ async function loadActivityDetail(id, container) {
 
   container.innerHTML = `
     <div class="detail-content">
-      ${trainingEffectSummary(detail)}
-      ${weatherSummary(detail)}
-      <div>Aerobic decoupling: ${decouplingBadge(detail.decoupling_pct)}</div>
-      ${zoneMiniBar(detail.hr_zones)}
-      <div class="lap-chart-box"><canvas id="lap-pacehr-${id}"></canvas></div>
-      <div class="lap-chart-box small"><canvas id="lap-elevation-${id}"></canvas></div>
-      ${lapsTable(detail.laps)}
-      <div class="track-map" id="map-${id}"></div>
+      ${section("Efekt treningowy", trainingEffectSummary(detail))}
+      ${section("Warunki", weatherSummary(detail))}
+      ${section("Tętno", `<div>Aerobic decoupling: ${decouplingBadge(detail.decoupling_pct)}</div>${zoneMiniBar(detail.hr_zones)}`)}
+      ${section("Tempo i tętno per okrążenie", `<div class="lap-chart-box"><canvas id="lap-pacehr-${id}"></canvas></div>`)}
+      ${section("Przewyższenie per okrążenie", `<div class="lap-chart-box small"><canvas id="lap-elevation-${id}"></canvas></div>`)}
+      ${section("Okrążenia", lapsTable(detail.laps))}
+      ${section("Trasa", `<div class="track-map" id="map-${id}"></div>`)}
       <div class="detail-actions">
         <button class="ignore-toggle-btn" title="Wyklucza trening z metryk liczonych na tętnie (tempo↔tętno, EF, strefy, eksport) — dystans i czas nadal się liczą do agregatów.">${detail.is_ignored ? "Przywróć" : "Ignoruj"}</button>
       </div>
@@ -557,12 +558,13 @@ async function loadActivities() {
       <td>${a.avg_hr ?? "—"}</td>
       <td>${a.cadence_spm ?? "—"}</td>
       <td>${a.aerobic_te != null ? a.aerobic_te.toFixed(1) : "—"}</td>
+      <td>${a.anaerobic_te != null ? a.anaerobic_te.toFixed(1) : "—"}</td>
     `;
 
     const detailRow = document.createElement("tr");
     detailRow.className = "detail-row hidden";
     const detailCell = document.createElement("td");
-    detailCell.colSpan = 8;
+    detailCell.colSpan = 9;
     detailCell.innerHTML = `<div class="detail-loading">Ładowanie…</div>`;
     detailRow.appendChild(detailCell);
 

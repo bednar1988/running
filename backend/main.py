@@ -78,6 +78,7 @@ def list_activities(
                 "max_hr": a.max_hr,
                 "cadence_spm": aggregates.round_int(a.avg_cadence_spm),
                 "aerobic_te": aggregates.round_opt(a.aerobic_te),
+                "anaerobic_te": aggregates.round_opt(a.anaerobic_te),
                 "elevation_gain_m": a.elevation_gain_m,
                 "is_ignored": a.is_ignored,
             }
