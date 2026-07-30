@@ -56,6 +56,7 @@ document.querySelectorAll(".tab-btn").forEach((b) => b.addEventListener("click",
 // --- Overview tab -------------------------------------------------------
 
 let weeklyVolumeChart, pacehrChart, efChart, zonesChart, wellnessChart, aggChart;
+let overviewWeeks = 12;
 
 const ZONE_COLORS = ["#2ec4b6", "#4caf50", "#ffc107", "#ff6b35", "#e63946"];
 
@@ -97,7 +98,7 @@ async function loadSummaryCards() {
 }
 
 async function loadWeeklyVolumeChart() {
-  const data = await api("/api/weekly-volume?weeks=12");
+  const data = await api(`/api/weekly-volume?weeks=${overviewWeeks}`);
   const ctx = $("#weekly-volume-chart");
   if (weeklyVolumeChart) weeklyVolumeChart.destroy();
   weeklyVolumeChart = new Chart(ctx, {
@@ -132,7 +133,7 @@ async function loadWeeklyVolumeChart() {
 }
 
 async function loadPaceHrChart() {
-  const data = await api("/api/progression/pace-hr?weeks=26");
+  const data = await api(`/api/progression/pace-hr?weeks=${overviewWeeks}`);
   const ctx = $("#pacehr-chart");
   if (pacehrChart) pacehrChart.destroy();
   pacehrChart = new Chart(ctx, {
@@ -189,7 +190,7 @@ async function loadPaceHrChart() {
 }
 
 async function loadEfficiencyChart() {
-  const data = await api("/api/progression/efficiency-factor?weeks=26");
+  const data = await api(`/api/progression/efficiency-factor?weeks=${overviewWeeks}`);
   const ctx = $("#ef-chart");
   if (efChart) efChart.destroy();
   efChart = new Chart(ctx, {
@@ -215,7 +216,7 @@ async function loadEfficiencyChart() {
 }
 
 async function loadZonesChart() {
-  const data = await api("/api/hr-zones/weekly?weeks=12");
+  const data = await api(`/api/hr-zones/weekly?weeks=${overviewWeeks}`);
   const ctx = $("#zones-chart");
   if (zonesChart) zonesChart.destroy();
   zonesChart = new Chart(ctx, {
@@ -238,7 +239,13 @@ async function loadZonesChart() {
 }
 
 async function loadWellnessChart() {
-  const data = await api("/api/wellness");
+  let url = "/api/wellness";
+  if (overviewWeeks < 520) {
+    const start = new Date();
+    start.setDate(start.getDate() - overviewWeeks * 7);
+    url += `?start=${isoLocal(start)}`;
+  }
+  const data = await api(url);
   const ctx = $("#wellness-chart");
   if (wellnessChart) wellnessChart.destroy();
   wellnessChart = new Chart(ctx, {
@@ -441,16 +448,12 @@ $("#activities-limit").addEventListener("change", loadActivities);
 
 // --- Global (sync, export) -----------------------------------------------
 
+async function loadRangedCharts() {
+  await Promise.all([loadWeeklyVolumeChart(), loadPaceHrChart(), loadEfficiencyChart(), loadZonesChart(), loadWellnessChart()]);
+}
+
 async function refreshAll() {
-  await Promise.all([
-    loadSummaryCards(),
-    loadWeeklyVolumeChart(),
-    loadPaceHrChart(),
-    loadEfficiencyChart(),
-    loadZonesChart(),
-    loadWellnessChart(),
-    loadAggregate(),
-  ]);
+  await Promise.all([loadSummaryCards(), loadRangedCharts(), loadAggregate()]);
   if (loadedTabs.has("activities")) {
     activityDetailCache = {};
     await loadActivities();
@@ -477,6 +480,11 @@ $("#sync-btn").addEventListener("click", async () => {
 });
 
 $("#agg-period").addEventListener("change", loadAggregate);
+
+$("#overview-range").addEventListener("change", (e) => {
+  overviewWeeks = Number(e.target.value);
+  loadRangedCharts();
+});
 
 $("#export-btn").addEventListener("click", async () => {
   const start = $("#export-start").value;

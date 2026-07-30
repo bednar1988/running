@@ -1,10 +1,13 @@
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 from datetime import date
+from pathlib import Path
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
@@ -20,6 +23,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("running.main")
 
 FRONTEND_DIR = os.getenv("FRONTEND_DIR", "/app/frontend")
+
+# Changes on every container start (i.e. every redeploy), so browsers stop serving a stale
+# cached app.js/style.css after a version bump instead of needing a hard-refresh.
+CACHE_BUST = str(int(time.time()))
 
 
 @asynccontextmanager
@@ -243,4 +250,13 @@ def export(
 
 
 if os.path.isdir(FRONTEND_DIR):
+    _index_path = Path(FRONTEND_DIR, "index.html")
+
+    @app.get("/", include_in_schema=False)
+    def index():
+        html = _index_path.read_text(encoding="utf-8")
+        html = html.replace('src="/app.js"', f'src="/app.js?v={CACHE_BUST}"')
+        html = html.replace('href="/style.css"', f'href="/style.css?v={CACHE_BUST}"')
+        return HTMLResponse(html)
+
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
