@@ -111,7 +111,7 @@ async function loadWeeklyVolumeChart() {
         {
           label: "Dystans (km)",
           data: data.map((d) => d.distance_km),
-          backgroundColor: "#c1440e",
+          backgroundColor: "#a8461c",
         },
       ],
     },
@@ -146,14 +146,14 @@ async function loadPaceHrChart() {
         {
           label: "Śr. tempo",
           data: data.map((d) => paceToSeconds(d.avg_pace_per_km)),
-          borderColor: "#d8a33d",
+          borderColor: "#b8903f",
           yAxisID: "pace",
           tension: 0.25,
         },
         {
           label: "Śr. tętno",
           data: data.map((d) => d.avg_hr),
-          borderColor: "#c1440e",
+          borderColor: "#a8461c",
           yAxisID: "hr",
           tension: 0.25,
         },
@@ -203,8 +203,8 @@ async function loadEfficiencyChart() {
         {
           label: "Efficiency Factor",
           data: data.map((d) => d.ef),
-          borderColor: "#d8a33d",
-          backgroundColor: "rgba(216,163,61,0.15)",
+          borderColor: "#b8903f",
+          backgroundColor: "rgba(184,144,63,0.15)",
           fill: true,
           tension: 0.25,
         },
@@ -258,7 +258,7 @@ async function loadWellnessChart() {
         {
           label: "Tętno spoczynkowe",
           data: data.map((d) => d.resting_hr),
-          borderColor: "#c1440e",
+          borderColor: "#a8461c",
           yAxisID: "rhr",
           tension: 0.25,
           pointRadius: 0,
@@ -266,7 +266,7 @@ async function loadWellnessChart() {
         {
           label: "HRV (ms)",
           data: data.map((d) => d.hrv_avg_ms),
-          borderColor: "#d8a33d",
+          borderColor: "#b8903f",
           yAxisID: "hrv",
           tension: 0.25,
           pointRadius: 0,
@@ -293,7 +293,7 @@ async function loadAggregate() {
     type: "bar",
     data: {
       labels: data.map((d) => d.period),
-      datasets: [{ label: "Dystans (km)", data: data.map((d) => d.distance_km), backgroundColor: "#d8a33d" }],
+      datasets: [{ label: "Dystans (km)", data: data.map((d) => d.distance_km), backgroundColor: "#b8903f" }],
     },
     options: { plugins: { legend: { display: false } } },
   });
@@ -354,7 +354,7 @@ async function loadTrackMap(id) {
     const data = await api(`/api/activities/${id}/track`);
     const map = L.map(mapEl, { attributionControl: false, zoomControl: false });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
-    const line = L.polyline(data.points, { color: "#c1440e", weight: 3 }).addTo(map);
+    const line = L.polyline(data.points, { color: "#a8461c", weight: 3 }).addTo(map);
     map.fitBounds(line.getBounds(), { padding: [10, 10] });
     setTimeout(() => map.invalidateSize(), 50);
   } catch (e) {

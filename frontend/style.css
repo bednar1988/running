@@ -4,9 +4,9 @@
   --panel-border: #2a2a26;
   --text: #f0efe9;
   --text-dim: #8a8880;
-  --accent: #c1440e;
-  --accent-2: #d8a33d;
-  --danger: #d43f3f;
+  --accent: #a8461c;
+  --accent-2: #b8903f;
+  --danger: #a83c3c;
 }
 
 * { box-sizing: border-box; }
@@ -306,9 +306,9 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
-.decoupling-badge.good { background: rgba(216, 163, 61, 0.18); color: var(--accent-2); }
-.decoupling-badge.ok { background: rgba(216, 163, 61, 0.18); color: var(--accent-2); }
-.decoupling-badge.high { background: rgba(212, 63, 63, 0.18); color: var(--danger); }
+.decoupling-badge.good { background: rgba(184,144,63, 0.18); color: var(--accent-2); }
+.decoupling-badge.ok { background: rgba(184,144,63, 0.18); color: var(--accent-2); }
+.decoupling-badge.high { background: rgba(168,60,60, 0.18); color: var(--danger); }
 .decoupling-badge.unknown { background: rgba(240, 239, 233, 0.08); color: var(--text-dim); }
 
 .track-map {
