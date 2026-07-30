@@ -120,7 +120,6 @@ def activity_detail(activity_id: int, db: Session = Depends(get_session)):
         "weather_temp_c": activity.weather_temp_c,
         "weather_humidity_pct": activity.weather_humidity_pct,
         "weather_condition": activity.weather_condition,
-        "similar_runs": aggregates.similar_runs_rank(db, activity),
         "laps": [
             {
                 "lap_index": lap.lap_index,

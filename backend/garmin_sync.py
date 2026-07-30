@@ -223,11 +223,38 @@ def _parse_weather(activity_id: int, raw: dict) -> dict:
     condition = _dig(raw, "weatherTypeDTO.desc", "conditions", "weatherCondition", "conditionDescription")
     if temp is None and humidity is None and condition is None:
         logger.warning("No weather field matched any candidate key for activity %s; raw: %s", activity_id, raw)
+        # "" (not None) marks "we tried and there's genuinely nothing" so backfill_weather()
+        # doesn't keep retrying the same no-data activities on every sync.
+        condition = ""
     return {
         "weather_temp_c": temp,
         "weather_humidity_pct": int(humidity) if humidity is not None else None,
         "weather_condition": condition,
     }
+
+
+def backfill_weather(db: Session, limit: int = 30) -> int:
+    """Fill in weather for activities synced before weather support existed. Bounded per call
+    (not just once) so it doesn't hammer the API in a single sync if there's a big backlog."""
+    client = get_client()
+    missing = (
+        db.query(Activity)
+        .filter(Activity.weather_condition.is_(None))
+        .order_by(Activity.start_time_local.desc())
+        .limit(limit)
+        .all()
+    )
+    updated = 0
+    for activity in missing:
+        try:
+            weather_raw = client.get_activity_weather(str(activity.id))
+            for key, value in _parse_weather(activity.id, weather_raw).items():
+                setattr(activity, key, value)
+            updated += 1
+        except Exception:
+            logger.exception("Failed to backfill weather for activity %s", activity.id)
+    db.commit()
+    return updated
 
 
 def sync_activities(db: Session) -> int:
@@ -379,7 +406,8 @@ def sync_daily_wellness(db: Session) -> int:
 def run_full_sync(db: Session) -> dict:
     n_activities = sync_activities(db)
     n_wellness = sync_daily_wellness(db)
-    return {"new_activities": n_activities, "wellness_days_synced": n_wellness}
+    n_weather = backfill_weather(db)
+    return {"new_activities": n_activities, "wellness_days_synced": n_wellness, "weather_backfilled": n_weather}
 
 
 def fetch_activity_track(activity_id: int) -> Optional[list[tuple[float, float]]]:

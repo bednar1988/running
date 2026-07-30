@@ -336,11 +336,26 @@ function zoneMiniBar(zones) {
   return `<div class="zone-mini-bar">${spans}</div>`;
 }
 
+// Garmin's aerobic_te_label/anaerobic_te_label are raw internal message keys (e.g.
+// "IMPACTING_TEMPO_22"), not human text — describe the 0-5 scale ourselves instead.
+function teDescription(value) {
+  if (value == null) return "—";
+  if (value < 1) return "brak korzyści";
+  if (value < 2) return "niewielka korzyść";
+  if (value < 3) return "utrzymanie formy";
+  if (value < 4) return "poprawa";
+  if (value < 5) return "znacząca poprawa";
+  return "przetrenowanie";
+}
+
 function trainingEffectSummary(detail) {
   if (detail.aerobic_te == null && detail.anaerobic_te == null) return "";
-  const aerobic = detail.aerobic_te != null ? `${detail.aerobic_te.toFixed(1)} (${detail.aerobic_te_label ?? "—"})` : "—";
-  const anaerobic = detail.anaerobic_te != null ? `${detail.anaerobic_te.toFixed(1)} (${detail.anaerobic_te_label ?? "—"})` : "—";
-  return `<div class="hint">Efekt treningowy — aerobowy: <strong>${aerobic}</strong> &middot; beztlenowy: <strong>${anaerobic}</strong></div>`;
+  return `
+    <div class="te-summary">
+      <span>Aerobowy <strong>${detail.aerobic_te?.toFixed(1) ?? "—"}</strong> <span class="hint">${teDescription(detail.aerobic_te)}</span></span>
+      <span>Beztlenowy <strong>${detail.anaerobic_te?.toFixed(1) ?? "—"}</strong> <span class="hint">${teDescription(detail.anaerobic_te)}</span></span>
+    </div>
+  `;
 }
 
 function weatherSummary(detail) {
@@ -350,11 +365,6 @@ function weatherSummary(detail) {
   if (detail.weather_humidity_pct != null) parts.push(`${detail.weather_humidity_pct}% wilgotności`);
   if (detail.weather_condition) parts.push(detail.weather_condition);
   return `<div class="hint">${parts.join(" &middot; ")}</div>`;
-}
-
-function similarRunsSummary(sr) {
-  if (!sr) return "";
-  return `<div class="hint">${sr.rank}. najszybszy z ${sr.total} biegów w zakresie ${sr.band_low_km}–${sr.band_high_km} km (tempo)</div>`;
 }
 
 let lapCharts = {};
@@ -391,6 +401,7 @@ function renderLapCharts(id, laps) {
         ],
       },
       options: {
+        maintainAspectRatio: false,
         scales: {
           x: { title: { display: true, text: "okrążenie" } },
           pace: { type: "linear", position: "left", reverse: true, ticks: { callback: (v) => secondsToPace(v) } },
@@ -420,6 +431,7 @@ function renderLapCharts(id, laps) {
         datasets: [{ label: "Przewyższenie (m)", data: elevLaps.map((l) => l.elevation_gain_m), backgroundColor: "#5f7d4f" }],
       },
       options: {
+        maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: { x: { title: { display: true, text: "okrążenie" } }, y: { title: { display: true, text: "m" } } },
       },
@@ -476,11 +488,10 @@ async function loadActivityDetail(id, container) {
     <div class="detail-content">
       ${trainingEffectSummary(detail)}
       ${weatherSummary(detail)}
-      ${similarRunsSummary(detail.similar_runs)}
       <div>Aerobic decoupling: ${decouplingBadge(detail.decoupling_pct)}</div>
       ${zoneMiniBar(detail.hr_zones)}
-      <canvas id="lap-pacehr-${id}" height="70"></canvas>
-      <canvas id="lap-elevation-${id}" height="50"></canvas>
+      <div class="lap-chart-box"><canvas id="lap-pacehr-${id}"></canvas></div>
+      <div class="lap-chart-box small"><canvas id="lap-elevation-${id}"></canvas></div>
       ${lapsTable(detail.laps)}
       <div class="track-map" id="map-${id}"></div>
       <div class="detail-actions">
@@ -568,7 +579,7 @@ $("#sync-btn").addEventListener("click", async () => {
     const res = await fetch("/api/sync", { method: "POST" });
     if (!res.ok) throw new Error(await res.text());
     const result = await res.json();
-    status.textContent = `Gotowe: +${result.new_activities} treningów, ${result.wellness_days_synced} dni wellness`;
+    status.textContent = `Gotowe: +${result.new_activities} treningów, ${result.wellness_days_synced} dni wellness, ${result.weather_backfilled} pogoda`;
     await refreshAll();
   } catch (e) {
     status.textContent = "Błąd synchronizacji — sprawdź logi kontenera";

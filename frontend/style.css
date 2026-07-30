@@ -210,6 +210,10 @@ table {
   font-variant-numeric: tabular-nums;
 }
 
+.laps-table {
+  table-layout: fixed;
+}
+
 th, td {
   text-align: left;
   padding: 0.4rem 0.6rem;
@@ -307,6 +311,22 @@ textarea {
 .detail-loading {
   color: var(--text-dim);
   font-size: 0.85rem;
+}
+
+.lap-chart-box {
+  position: relative;
+  height: 200px;
+}
+
+.lap-chart-box.small {
+  height: 110px;
+}
+
+.te-summary {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
 }
 
 .decoupling-badge {
