@@ -372,6 +372,27 @@ textarea {
   height: 100%;
 }
 
+.zone-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.zone-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.zone-swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+}
+
 .zone-1 { background: #4a7d76; }
 .zone-2 { background: #5f7d4f; }
 .zone-3 { background: #b8903f; }

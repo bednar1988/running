@@ -61,6 +61,10 @@ let weeklyVolumeChart, pacehrChart, efChart, zonesChart, wellnessChart, aggChart
 let overviewWeeks = 12;
 
 const ZONE_COLORS = ["#4a7d76", "#5f7d4f", "#b8903f", "#a8461c", "#a83c3c"];
+// Fixed pace/HR colors everywhere the two are plotted together — blue vs red reads at a glance,
+// unlike two similarly-muted warm tones from the rest of the palette.
+const PACE_COLOR = "#4a7ba8";
+const HR_COLOR = "#a83c3c";
 
 async function loadSummaryCards() {
   const today = new Date();
@@ -146,14 +150,14 @@ async function loadPaceHrChart() {
         {
           label: "Śr. tempo",
           data: data.map((d) => paceToSeconds(d.avg_pace_per_km)),
-          borderColor: "#b8903f",
+          borderColor: PACE_COLOR,
           yAxisID: "pace",
           tension: 0.25,
         },
         {
           label: "Śr. tętno",
           data: data.map((d) => d.avg_hr),
-          borderColor: "#a8461c",
+          borderColor: HR_COLOR,
           yAxisID: "hr",
           tension: 0.25,
         },
@@ -326,14 +330,20 @@ function decouplingBadge(pct) {
 function zoneMiniBar(zones) {
   const total = zones.reduce((sum, z) => sum + (z.time_in_zone_min || 0), 0);
   if (!total) return `<span class="hint">Brak danych o strefach tętna dla tego treningu.</span>`;
-  const spans = zones
-    .filter((z) => z.time_in_zone_min)
+  const active = zones.filter((z) => z.time_in_zone_min);
+  const spans = active
     .map((z) => {
       const range = z.zone_low_bpm && z.zone_high_bpm ? ` (${z.zone_low_bpm}–${z.zone_high_bpm} bpm)` : "";
       return `<span class="zone-${z.zone_number}" style="width:${(z.time_in_zone_min / total) * 100}%" title="Strefa ${z.zone_number}${range}: ${z.time_in_zone_min} min"></span>`;
     })
     .join("");
-  return `<div class="zone-mini-bar">${spans}</div>`;
+  const legend = active
+    .map(
+      (z) =>
+        `<span class="zone-legend-item"><span class="zone-${z.zone_number} zone-swatch"></span>Strefa ${z.zone_number}: ${z.time_in_zone_min} min (${Math.round((z.time_in_zone_min / total) * 100)}%)</span>`
+    )
+    .join("");
+  return `<div class="zone-mini-bar">${spans}</div><div class="zone-legend">${legend}</div>`;
 }
 
 // Garmin's aerobic_te_label/anaerobic_te_label are raw internal message keys (e.g.
@@ -358,12 +368,26 @@ function trainingEffectSummary(detail) {
   `;
 }
 
+function weatherIcon(condition) {
+  if (!condition) return "";
+  const c = condition.toLowerCase();
+  if (/thunder|storm/.test(c)) return "⛈";
+  if (/snow|sleet/.test(c)) return "❄";
+  if (/rain|shower|drizzle/.test(c)) return "🌧";
+  if (/fog|mist|haze/.test(c)) return "🌫";
+  if (/wind/.test(c)) return "💨";
+  if (/cloud|overcast/.test(c)) return "☁";
+  if (/clear|sun/.test(c)) return "☀";
+  return "";
+}
+
 function weatherSummary(detail) {
   if (detail.weather_temp_c == null && !detail.weather_condition) return "";
   const parts = [];
   if (detail.weather_temp_c != null) parts.push(`${Math.round(detail.weather_temp_c)}°C`);
   if (detail.weather_humidity_pct != null) parts.push(`${detail.weather_humidity_pct}% wilgotności`);
-  if (detail.weather_condition) parts.push(detail.weather_condition);
+  const icon = weatherIcon(detail.weather_condition);
+  if (icon) parts.push(icon);
   return `<div class="hint">${parts.join(" &middot; ")}</div>`;
 }
 
@@ -387,14 +411,14 @@ function renderLapCharts(id, laps) {
           {
             label: "Tempo",
             data: paceLaps.map((l) => paceToSeconds(l.avg_pace_per_km)),
-            borderColor: "#b8903f",
+            borderColor: PACE_COLOR,
             yAxisID: "pace",
             tension: 0.2,
           },
           {
             label: "Tętno",
             data: paceLaps.map((l) => l.avg_hr),
-            borderColor: "#a8461c",
+            borderColor: HR_COLOR,
             yAxisID: "hr",
             tension: 0.2,
           },

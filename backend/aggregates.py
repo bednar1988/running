@@ -18,6 +18,12 @@ def round_int(value: Optional[float]) -> Optional[int]:
     return round(value) if value is not None else None
 
 
+def f_to_c(fahrenheit: Optional[float]) -> Optional[float]:
+    """Garmin's activity weather endpoint returns temperature in Fahrenheit regardless of
+    account locale — Activity.weather_temp_c is stored as-received (raw F) and converted here."""
+    return round((fahrenheit - 32) * 5 / 9, 1) if fahrenheit is not None else None
+
+
 def format_pace(seconds_per_km: Optional[float]) -> Optional[str]:
     if seconds_per_km is None:
         return None

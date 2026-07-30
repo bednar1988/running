@@ -218,7 +218,7 @@ def _parse_hrv(raw: dict) -> tuple[Optional[float], Optional[str]]:
 
 
 def _parse_weather(activity_id: int, raw: dict) -> dict:
-    temp = _dig(raw, "temp", "temperature", "apparentTemp")
+    temp = _dig(raw, "temp", "temperature", "apparentTemp")  # raw Fahrenheit — converted at read time (aggregates.f_to_c)
     humidity = _dig(raw, "relativeHumidity", "humidity")
     condition = _dig(raw, "weatherTypeDTO.desc", "conditions", "weatherCondition", "conditionDescription")
     if temp is None and humidity is None and condition is None:
