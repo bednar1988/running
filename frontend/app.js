@@ -383,14 +383,13 @@ async function loadActivityDetail(id, container) {
 
   container.innerHTML = `
     <div class="detail-content">
-      <div class="detail-actions">
-        <button class="ignore-toggle-btn">${detail.is_ignored ? "Przywróć trening" : "Ignoruj trening (zła jakość tętna)"}</button>
-        ${detail.is_ignored ? '<span class="hint">Pomijany w metrykach opartych o tętno — nadal liczy się do dystansu/czasu.</span>' : ""}
-      </div>
       <div>Aerobic decoupling: ${decouplingBadge(detail.decoupling_pct)}</div>
       ${zoneMiniBar(detail.hr_zones)}
       ${lapsTable(detail.laps)}
       <div class="track-map" id="map-${id}"></div>
+      <div class="detail-actions">
+        <button class="ignore-toggle-btn" title="Wyklucza trening z metryk liczonych na tętnie (tempo↔tętno, EF, strefy, eksport) — dystans i czas nadal się liczą do agregatów.">${detail.is_ignored ? "Przywróć" : "Ignoruj"}</button>
+      </div>
     </div>
   `;
 
