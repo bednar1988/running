@@ -340,11 +340,11 @@ textarea {
   height: 100%;
 }
 
-.zone-1 { background: #3f8f86; }
-.zone-2 { background: #5a9c4a; }
-.zone-3 { background: #d8a33d; }
-.zone-4 { background: #c1440e; }
-.zone-5 { background: #d43f3f; }
+.zone-1 { background: #4a7d76; }
+.zone-2 { background: #5f7d4f; }
+.zone-3 { background: #b8903f; }
+.zone-4 { background: #a8461c; }
+.zone-5 { background: #a83c3c; }
 
 @media (prefers-color-scheme: light) {
   :root {

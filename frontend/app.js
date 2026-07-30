@@ -60,7 +60,7 @@ document.querySelectorAll(".tab-btn").forEach((b) => b.addEventListener("click",
 let weeklyVolumeChart, pacehrChart, efChart, zonesChart, wellnessChart, aggChart;
 let overviewWeeks = 12;
 
-const ZONE_COLORS = ["#3f8f86", "#5a9c4a", "#d8a33d", "#c1440e", "#d43f3f"];
+const ZONE_COLORS = ["#4a7d76", "#5f7d4f", "#b8903f", "#a8461c", "#a83c3c"];
 
 async function loadSummaryCards() {
   const today = new Date();
