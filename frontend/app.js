@@ -1,5 +1,7 @@
 const $ = (sel) => document.querySelector(sel);
 
+Chart.defaults.font.family = "ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace";
+
 async function api(path) {
   const res = await fetch(path);
   if (!res.ok) throw new Error(`${path} -> ${res.status}`);
@@ -58,7 +60,7 @@ document.querySelectorAll(".tab-btn").forEach((b) => b.addEventListener("click",
 let weeklyVolumeChart, pacehrChart, efChart, zonesChart, wellnessChart, aggChart;
 let overviewWeeks = 12;
 
-const ZONE_COLORS = ["#2ec4b6", "#4caf50", "#ffc107", "#ff6b35", "#e63946"];
+const ZONE_COLORS = ["#3f8f86", "#5a9c4a", "#d8a33d", "#c1440e", "#d43f3f"];
 
 async function loadSummaryCards() {
   const today = new Date();
@@ -109,7 +111,7 @@ async function loadWeeklyVolumeChart() {
         {
           label: "Dystans (km)",
           data: data.map((d) => d.distance_km),
-          backgroundColor: "#ff6b35",
+          backgroundColor: "#c1440e",
         },
       ],
     },
@@ -144,14 +146,14 @@ async function loadPaceHrChart() {
         {
           label: "Śr. tempo",
           data: data.map((d) => paceToSeconds(d.avg_pace_per_km)),
-          borderColor: "#2ec4b6",
+          borderColor: "#d8a33d",
           yAxisID: "pace",
           tension: 0.25,
         },
         {
           label: "Śr. tętno",
           data: data.map((d) => d.avg_hr),
-          borderColor: "#ff6b35",
+          borderColor: "#c1440e",
           yAxisID: "hr",
           tension: 0.25,
         },
@@ -201,8 +203,8 @@ async function loadEfficiencyChart() {
         {
           label: "Efficiency Factor",
           data: data.map((d) => d.ef),
-          borderColor: "#2ec4b6",
-          backgroundColor: "rgba(46,196,182,0.15)",
+          borderColor: "#d8a33d",
+          backgroundColor: "rgba(216,163,61,0.15)",
           fill: true,
           tension: 0.25,
         },
@@ -256,7 +258,7 @@ async function loadWellnessChart() {
         {
           label: "Tętno spoczynkowe",
           data: data.map((d) => d.resting_hr),
-          borderColor: "#ff6b35",
+          borderColor: "#c1440e",
           yAxisID: "rhr",
           tension: 0.25,
           pointRadius: 0,
@@ -264,7 +266,7 @@ async function loadWellnessChart() {
         {
           label: "HRV (ms)",
           data: data.map((d) => d.hrv_avg_ms),
-          borderColor: "#2ec4b6",
+          borderColor: "#d8a33d",
           yAxisID: "hrv",
           tension: 0.25,
           pointRadius: 0,
@@ -291,7 +293,7 @@ async function loadAggregate() {
     type: "bar",
     data: {
       labels: data.map((d) => d.period),
-      datasets: [{ label: "Dystans (km)", data: data.map((d) => d.distance_km), backgroundColor: "#2ec4b6" }],
+      datasets: [{ label: "Dystans (km)", data: data.map((d) => d.distance_km), backgroundColor: "#d8a33d" }],
     },
     options: { plugins: { legend: { display: false } } },
   });
@@ -352,7 +354,7 @@ async function loadTrackMap(id) {
     const data = await api(`/api/activities/${id}/track`);
     const map = L.map(mapEl, { attributionControl: false, zoomControl: false });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
-    const line = L.polyline(data.points, { color: "#ff6b35", weight: 3 }).addTo(map);
+    const line = L.polyline(data.points, { color: "#c1440e", weight: 3 }).addTo(map);
     map.fitBounds(line.getBounds(), { padding: [10, 10] });
     setTimeout(() => map.invalidateSize(), 50);
   } catch (e) {
