@@ -504,7 +504,7 @@ function markRowIgnored(id, isIgnored) {
   row.classList.toggle("ignored-row", isIgnored);
   const label = row.querySelector(".ignored-label");
   if (isIgnored && !label) {
-    row.children[2].insertAdjacentHTML("beforeend", ` <span class="ignored-label">ignorowany</span>`);
+    row.children[1].insertAdjacentHTML("beforeend", ` <span class="ignored-label">ignorowany</span>`);
   } else if (!isIgnored && label) {
     label.remove();
   }
@@ -638,7 +638,6 @@ async function loadActivities() {
     row.dataset.id = a.id;
     row.innerHTML = `
       <td class="expand-toggle">▶</td>
-      <td class="note-indicator" title="${a.has_note ? "Ma notatkę" : ""}">${a.has_note ? "📝" : ""}</td>
       <td>${fmtDate(a.date)}${a.is_ignored ? ' <span class="ignored-label">ignorowany</span>' : ""}</td>
       <td>${a.distance_km} km</td>
       <td>${a.duration_min} min</td>
@@ -647,6 +646,7 @@ async function loadActivities() {
       <td>${a.cadence_spm ?? "—"}</td>
       <td>${a.aerobic_te != null ? a.aerobic_te.toFixed(1) : "—"}</td>
       <td>${a.anaerobic_te != null ? a.anaerobic_te.toFixed(1) : "—"}</td>
+      <td class="note-indicator" title="${a.has_note ? "Ma notatkę" : ""}">${a.has_note ? "📝" : ""}</td>
     `;
 
     const detailRow = document.createElement("tr");
