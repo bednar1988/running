@@ -55,7 +55,7 @@ document.querySelectorAll(".tab-btn").forEach((b) => b.addEventListener("click",
 
 // --- Overview tab -------------------------------------------------------
 
-let rollingChart, pacehrChart, efChart, zonesChart, wellnessChart, aggChart;
+let weeklyVolumeChart, pacehrChart, efChart, zonesChart, wellnessChart, aggChart;
 
 const ZONE_COLORS = ["#2ec4b6", "#4caf50", "#ffc107", "#ff6b35", "#e63946"];
 
@@ -66,15 +66,15 @@ async function loadSummaryCards() {
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const startOfYear = new Date(today.getFullYear(), 0, 1);
 
-  const [week, month, year, rolling] = await Promise.all([
+  const [week, month, year, weeklyVolume] = await Promise.all([
     api(`/api/aggregate?period=week&start=${isoLocal(startOfWeek)}`),
     api(`/api/aggregate?period=month&start=${isoLocal(startOfMonth)}`),
     api(`/api/aggregate?period=year&start=${isoLocal(startOfYear)}`),
-    api(`/api/rolling-volume?window_days=7`),
+    api(`/api/weekly-volume?weeks=12`),
   ]);
 
-  const lastRolling = rolling.at(-1);
-  const pctChange = lastRolling?.pct_change_vs_prior_window;
+  const lastWeek = weeklyVolume.at(-1);
+  const pctChange = lastWeek?.pct_change_vs_prior_week;
   const warn = pctChange !== null && pctChange !== undefined && pctChange > 10;
 
   // .at(-1): the most recent (current) bucket — buckets are sorted ascending by period key.
@@ -83,7 +83,7 @@ async function loadSummaryCards() {
     { label: "Ten miesiąc", value: `${month.at(-1)?.distance_km ?? 0} km` },
     { label: "Ten rok", value: `${year.at(-1)?.distance_km ?? 0} km` },
     {
-      label: "7d rolling vs poprz. 7d",
+      label: "Ten tydzień vs poprzedni",
       value: pctChange !== null && pctChange !== undefined ? `${pctChange > 0 ? "+" : ""}${pctChange}%` : "—",
       warn,
     },
@@ -96,32 +96,37 @@ async function loadSummaryCards() {
     .join("");
 }
 
-async function loadRollingChart() {
-  const data = await api("/api/rolling-volume?window_days=7");
-  const ctx = $("#rolling-chart");
-  if (rollingChart) rollingChart.destroy();
-  rollingChart = new Chart(ctx, {
-    type: "line",
+async function loadWeeklyVolumeChart() {
+  const data = await api("/api/weekly-volume?weeks=12");
+  const ctx = $("#weekly-volume-chart");
+  if (weeklyVolumeChart) weeklyVolumeChart.destroy();
+  weeklyVolumeChart = new Chart(ctx, {
+    type: "bar",
     data: {
-      labels: data.map((d) => d.date),
+      labels: data.map((d) => d.week),
       datasets: [
         {
-          label: "Krocząca suma 7d (km)",
-          data: data.map((d) => d.rolling_distance_km),
-          borderColor: "#ff6b35",
-          backgroundColor: "rgba(255,107,53,0.15)",
-          fill: true,
-          tension: 0.25,
-          pointRadius: 0,
+          label: "Dystans (km)",
+          data: data.map((d) => d.distance_km),
+          backgroundColor: "#ff6b35",
         },
       ],
     },
     options: {
       scales: {
-        x: { ticks: { maxTicksLimit: 10 } },
         y: { beginAtZero: true, title: { display: true, text: "km" } },
       },
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterLabel: (ctx) => {
+              const pct = data[ctx.dataIndex]?.pct_change_vs_prior_week;
+              return pct !== null && pct !== undefined ? `${pct > 0 ? "+" : ""}${pct}% vs poprz. tydzień` : "";
+            },
+          },
+        },
+      },
     },
   });
 }
@@ -439,7 +444,7 @@ $("#activities-limit").addEventListener("change", loadActivities);
 async function refreshAll() {
   await Promise.all([
     loadSummaryCards(),
-    loadRollingChart(),
+    loadWeeklyVolumeChart(),
     loadPaceHrChart(),
     loadEfficiencyChart(),
     loadZonesChart(),

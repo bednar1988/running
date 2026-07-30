@@ -44,7 +44,7 @@ def fetch_activities(
 ) -> list[Activity]:
     """include_ignored=False (the default) excludes activities flagged via is_ignored — used for
     anything HR-derived (pace/HR, EF, zone breakdown), since a bad HR source (e.g. watch-wrist
-    instead of chest strap) poisons those. Distance/time-only aggregates (calendar totals, rolling
+    instead of chest strap) poisons those. Distance/time-only aggregates (calendar totals, weekly
     volume) pass include_ignored=True since the user still wants those runs counted toward km."""
     stmt = select(Activity).order_by(Activity.start_time_local.asc())
     if not include_ignored:
@@ -82,41 +82,40 @@ def calendar_aggregate(db: Session, period: str, start: Optional[date] = None, e
     return result
 
 
-def rolling_weekly_volume(db: Session, window_days: int = 7, start: Optional[date] = None, end: Optional[date] = None) -> list[dict]:
-    """Daily rolling sum of distance over the trailing `window_days`, plus % change vs the
-    prior equal-length window (the "max 10% weekly progression" check)."""
-    activities = fetch_activities(db, None, end, include_ignored=True)
-    if not activities:
-        return []
+def weekly_volume_comparison(db: Session, weeks: int = 12, end: Optional[date] = None) -> list[dict]:
+    """Calendar-week (Mon-Sun) distance totals, each compared to the immediately preceding
+    calendar week — the "max 10% weekly progression" check. Deliberately NOT a rolling/trailing
+    window: a day-by-day rolling sum swings noisily (a run falling in/out of the trailing 7 days
+    can flip the % between runs), while calendar weeks give one stable comparison per week."""
+    end = end or date.today()
+    end_monday = end - timedelta(days=end.weekday())
+    range_start_monday = end_monday - timedelta(weeks=weeks - 1)
+    fetch_start = range_start_monday - timedelta(days=7)  # one extra week for the first % change
 
-    daily_distance: dict[date, float] = defaultdict(float)
+    activities = fetch_activities(db, fetch_start, end, include_ignored=True)
+
+    weekly_distance: dict[date, float] = defaultdict(float)  # keyed by that week's Monday
     for a in activities:
-        daily_distance[a.start_time_local.date()] += a.distance_m
-
-    range_start = start or min(daily_distance.keys())
-    range_end = end or date.today()
+        d = a.start_time_local.date()
+        monday = d - timedelta(days=d.weekday())
+        weekly_distance[monday] += a.distance_m
 
     result = []
-    day = range_start
-    while day <= range_end:
-        window_sum = sum(
-            daily_distance.get(day - timedelta(days=i), 0.0) for i in range(window_days)
-        )
-        prior_window_sum = sum(
-            daily_distance.get(day - timedelta(days=window_days + i), 0.0) for i in range(window_days)
-        )
-        pct_change = None
-        if prior_window_sum > 0:
-            pct_change = round((window_sum - prior_window_sum) / prior_window_sum * 100, 1)
+    monday = range_start_monday
+    while monday <= end_monday:
+        this_week = weekly_distance.get(monday, 0.0)
+        prior_week = weekly_distance.get(monday - timedelta(days=7), 0.0)
+        pct_change = round((this_week - prior_week) / prior_week * 100, 1) if prior_week > 0 else None
+        year, iso_week, _ = monday.isocalendar()
 
         result.append(
             {
-                "date": day.isoformat(),
-                "rolling_distance_km": round(window_sum / 1000, 2),
-                "pct_change_vs_prior_window": pct_change,
+                "week": f"{year}-W{iso_week:02d}",
+                "distance_km": round(this_week / 1000, 2),
+                "pct_change_vs_prior_week": pct_change,
             }
         )
-        day += timedelta(days=1)
+        monday += timedelta(days=7)
 
     return result
 

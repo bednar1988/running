@@ -172,14 +172,13 @@ def aggregate(
     return aggregates.calendar_aggregate(db, period, start, end)
 
 
-@app.get("/api/rolling-volume")
-def rolling_volume(
-    window_days: int = 7,
-    start: Optional[date] = None,
+@app.get("/api/weekly-volume")
+def weekly_volume(
+    weeks: int = 12,
     end: Optional[date] = None,
     db: Session = Depends(get_session),
 ):
-    return aggregates.rolling_weekly_volume(db, window_days, start, end)
+    return aggregates.weekly_volume_comparison(db, weeks, end)
 
 
 @app.get("/api/progression/pace-hr")
