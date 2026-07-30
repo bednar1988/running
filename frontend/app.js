@@ -386,6 +386,7 @@ function weatherIcon(condition) {
   if (/rain|shower|drizzle/.test(c)) return "🌧";
   if (/fog|mist|haze/.test(c)) return "🌫";
   if (/wind/.test(c)) return "💨";
+  if (/partly|mostly sunny/.test(c)) return "⛅";
   if (/cloud|overcast/.test(c)) return "☁";
   if (/clear|sun/.test(c)) return "☀";
   return "";
@@ -503,10 +504,19 @@ function markRowIgnored(id, isIgnored) {
   row.classList.toggle("ignored-row", isIgnored);
   const label = row.querySelector(".ignored-label");
   if (isIgnored && !label) {
-    row.children[1].insertAdjacentHTML("beforeend", ` <span class="ignored-label">ignorowany</span>`);
+    row.children[2].insertAdjacentHTML("beforeend", ` <span class="ignored-label">ignorowany</span>`);
   } else if (!isIgnored && label) {
     label.remove();
   }
+}
+
+function markRowHasNote(id, hasNote) {
+  const row = document.querySelector(`tr.activity-row[data-id="${id}"]`);
+  if (!row) return;
+  const cell = row.querySelector(".note-indicator");
+  if (!cell) return;
+  cell.textContent = hasNote ? "📝" : "";
+  cell.title = hasNote ? "Ma notatkę" : "";
 }
 
 function section(title, innerHtml) {
@@ -565,6 +575,7 @@ function renderNoteSection(id, container) {
     activityDetailCache[id].note = result.note;
     noteEditing[id] = false;
     renderNoteSection(id, container);
+    markRowHasNote(id, !!result.note);
   });
   if (saveBtn) saveBtn.addEventListener("click", async () => {
     const textarea = body.querySelector(".note-textarea");
@@ -572,6 +583,7 @@ function renderNoteSection(id, container) {
     activityDetailCache[id].note = result.note;
     noteEditing[id] = false;
     renderNoteSection(id, container);
+    markRowHasNote(id, !!result.note);
   });
 }
 
@@ -626,6 +638,7 @@ async function loadActivities() {
     row.dataset.id = a.id;
     row.innerHTML = `
       <td class="expand-toggle">▶</td>
+      <td class="note-indicator" title="${a.has_note ? "Ma notatkę" : ""}">${a.has_note ? "📝" : ""}</td>
       <td>${fmtDate(a.date)}${a.is_ignored ? ' <span class="ignored-label">ignorowany</span>' : ""}</td>
       <td>${a.distance_km} km</td>
       <td>${a.duration_min} min</td>
@@ -639,7 +652,7 @@ async function loadActivities() {
     const detailRow = document.createElement("tr");
     detailRow.className = "detail-row hidden";
     const detailCell = document.createElement("td");
-    detailCell.colSpan = 9;
+    detailCell.colSpan = 10;
     detailCell.innerHTML = `<div class="detail-loading">Ładowanie…</div>`;
     detailRow.appendChild(detailCell);
 

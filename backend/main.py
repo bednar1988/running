@@ -82,6 +82,7 @@ def list_activities(
                 "anaerobic_te": aggregates.round_opt(a.anaerobic_te),
                 "elevation_gain_m": a.elevation_gain_m,
                 "is_ignored": a.is_ignored,
+                "has_note": bool(a.note),
             }
             for a in page
         ],

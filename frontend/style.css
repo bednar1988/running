@@ -368,6 +368,13 @@ textarea {
   line-height: 1;
 }
 
+.note-indicator {
+  font-size: 1.3rem;
+  line-height: 1;
+  text-align: center;
+  width: 1.5rem;
+}
+
 .lap-chart-box {
   position: relative;
   height: 200px;

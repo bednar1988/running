@@ -163,6 +163,10 @@ def _parse_laps(activity_id: int, raw: dict) -> list[dict]:
             lap_dtos[0],
         )
 
+    if lap_dtos:
+        elevation_keys = {k: v for k, v in lap_dtos[0].items() if "elev" in k.lower()}
+        logger.info("Activity %s lap elevation-related raw fields (first lap): %s", activity_id, elevation_keys)
+
     return laps
 
 
