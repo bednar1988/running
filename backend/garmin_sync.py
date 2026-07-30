@@ -217,6 +217,19 @@ def _parse_hrv(raw: dict) -> tuple[Optional[float], Optional[str]]:
     return avg, status
 
 
+def _parse_weather(activity_id: int, raw: dict) -> dict:
+    temp = _dig(raw, "temp", "temperature", "apparentTemp")
+    humidity = _dig(raw, "relativeHumidity", "humidity")
+    condition = _dig(raw, "weatherTypeDTO.desc", "conditions", "weatherCondition", "conditionDescription")
+    if temp is None and humidity is None and condition is None:
+        logger.warning("No weather field matched any candidate key for activity %s; raw: %s", activity_id, raw)
+    return {
+        "weather_temp_c": temp,
+        "weather_humidity_pct": int(humidity) if humidity is not None else None,
+        "weather_condition": condition,
+    }
+
+
 def sync_activities(db: Session) -> int:
     """Fetch new activities newest-first, stop at the first one already stored. Returns count added.
 
@@ -272,6 +285,13 @@ def sync_activities(db: Session) -> int:
                         db.add(HrZone(**zone))
             except Exception:
                 logger.exception("Failed to fetch/parse HR zones for activity %s", activity_id)
+
+            try:
+                weather_raw = client.get_activity_weather(str(activity_id))
+                for key, value in _parse_weather(activity_id, weather_raw).items():
+                    setattr(activity, key, value)
+            except Exception:
+                logger.exception("Failed to fetch/parse weather for activity %s", activity_id)
 
             existing_ids.add(activity_id)
             added += 1

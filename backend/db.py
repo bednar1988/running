@@ -34,6 +34,11 @@ def _migrate() -> None:
         if "track_points_json" not in cols:
             conn.exec_driver_sql("ALTER TABLE activities ADD COLUMN track_points_json TEXT")
             conn.commit()
+        if "weather_temp_c" not in cols:
+            conn.exec_driver_sql("ALTER TABLE activities ADD COLUMN weather_temp_c REAL")
+            conn.exec_driver_sql("ALTER TABLE activities ADD COLUMN weather_humidity_pct INTEGER")
+            conn.exec_driver_sql("ALTER TABLE activities ADD COLUMN weather_condition TEXT")
+            conn.commit()
 
 
 def get_session():

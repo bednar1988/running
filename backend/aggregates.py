@@ -146,6 +146,37 @@ def compute_decoupling(laps: list) -> Optional[float]:
     return round((ef_first - ef_second) / ef_first * 100, 1)
 
 
+def similar_runs_rank(db: Session, activity: Activity, band_pct: float = 0.15) -> Optional[dict]:
+    """Where a run ranks by pace among other runs of similar distance (±band_pct) — a "was this
+    a good run" signal that needs no new data. Pace/GPS distance aren't affected by HR-source
+    quality, so include_ignored=True unlike the HR-derived aggregates."""
+    if not activity.distance_m or not activity.avg_pace_s_per_km:
+        return None
+
+    low = activity.distance_m * (1 - band_pct)
+    high = activity.distance_m * (1 + band_pct)
+
+    candidates = (
+        db.query(Activity)
+        .filter(Activity.activity_type == activity.activity_type)
+        .filter(Activity.distance_m >= low, Activity.distance_m <= high)
+        .filter(Activity.avg_pace_s_per_km.isnot(None))
+        .all()
+    )
+    if len(candidates) < 2:
+        return None
+
+    ranked = sorted(candidates, key=lambda a: a.avg_pace_s_per_km)
+    rank = next(i for i, a in enumerate(ranked, start=1) if a.id == activity.id)
+
+    return {
+        "rank": rank,
+        "total": len(ranked),
+        "band_low_km": round(low / 1000, 1),
+        "band_high_km": round(high / 1000, 1),
+    }
+
+
 def pace_hr_progression(
     db: Session,
     weeks: int = 12,

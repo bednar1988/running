@@ -336,6 +336,97 @@ function zoneMiniBar(zones) {
   return `<div class="zone-mini-bar">${spans}</div>`;
 }
 
+function trainingEffectSummary(detail) {
+  if (detail.aerobic_te == null && detail.anaerobic_te == null) return "";
+  const aerobic = detail.aerobic_te != null ? `${detail.aerobic_te.toFixed(1)} (${detail.aerobic_te_label ?? "—"})` : "—";
+  const anaerobic = detail.anaerobic_te != null ? `${detail.anaerobic_te.toFixed(1)} (${detail.anaerobic_te_label ?? "—"})` : "—";
+  return `<div class="hint">Efekt treningowy — aerobowy: <strong>${aerobic}</strong> &middot; beztlenowy: <strong>${anaerobic}</strong></div>`;
+}
+
+function weatherSummary(detail) {
+  if (detail.weather_temp_c == null && !detail.weather_condition) return "";
+  const parts = [];
+  if (detail.weather_temp_c != null) parts.push(`${Math.round(detail.weather_temp_c)}°C`);
+  if (detail.weather_humidity_pct != null) parts.push(`${detail.weather_humidity_pct}% wilgotności`);
+  if (detail.weather_condition) parts.push(detail.weather_condition);
+  return `<div class="hint">${parts.join(" &middot; ")}</div>`;
+}
+
+function similarRunsSummary(sr) {
+  if (!sr) return "";
+  return `<div class="hint">${sr.rank}. najszybszy z ${sr.total} biegów w zakresie ${sr.band_low_km}–${sr.band_high_km} km (tempo)</div>`;
+}
+
+let lapCharts = {};
+
+function renderLapCharts(id, laps) {
+  if (lapCharts[id]) {
+    lapCharts[id].pace?.destroy();
+    lapCharts[id].elevation?.destroy();
+  }
+  lapCharts[id] = {};
+
+  const paceLaps = laps.filter((l) => l.avg_pace_per_km && l.avg_hr);
+  const paceCtx = $(`#lap-pacehr-${id}`);
+  if (paceCtx && paceLaps.length >= 2) {
+    lapCharts[id].pace = new Chart(paceCtx, {
+      type: "line",
+      data: {
+        labels: paceLaps.map((l) => l.lap_index),
+        datasets: [
+          {
+            label: "Tempo",
+            data: paceLaps.map((l) => paceToSeconds(l.avg_pace_per_km)),
+            borderColor: "#b8903f",
+            yAxisID: "pace",
+            tension: 0.2,
+          },
+          {
+            label: "Tętno",
+            data: paceLaps.map((l) => l.avg_hr),
+            borderColor: "#a8461c",
+            yAxisID: "hr",
+            tension: 0.2,
+          },
+        ],
+      },
+      options: {
+        scales: {
+          x: { title: { display: true, text: "okrążenie" } },
+          pace: { type: "linear", position: "left", reverse: true, ticks: { callback: (v) => secondsToPace(v) } },
+          hr: { type: "linear", position: "right", grid: { drawOnChartArea: false } },
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: (ctx) =>
+                ctx.dataset.yAxisID === "pace"
+                  ? `${ctx.dataset.label}: ${secondsToPace(ctx.parsed.y)}/km`
+                  : `${ctx.dataset.label}: ${ctx.parsed.y}`,
+            },
+          },
+        },
+      },
+    });
+  }
+
+  const elevLaps = laps.filter((l) => l.elevation_gain_m != null);
+  const elevCtx = $(`#lap-elevation-${id}`);
+  if (elevCtx && elevLaps.length >= 2) {
+    lapCharts[id].elevation = new Chart(elevCtx, {
+      type: "bar",
+      data: {
+        labels: elevLaps.map((l) => l.lap_index),
+        datasets: [{ label: "Przewyższenie (m)", data: elevLaps.map((l) => l.elevation_gain_m), backgroundColor: "#5f7d4f" }],
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: { x: { title: { display: true, text: "okrążenie" } }, y: { title: { display: true, text: "m" } } },
+      },
+    });
+  }
+}
+
 function lapsTable(laps) {
   if (!laps.length) return `<p class="hint">Brak danych o okrążeniach.</p>`;
   const rows = laps
@@ -383,8 +474,13 @@ async function loadActivityDetail(id, container) {
 
   container.innerHTML = `
     <div class="detail-content">
+      ${trainingEffectSummary(detail)}
+      ${weatherSummary(detail)}
+      ${similarRunsSummary(detail.similar_runs)}
       <div>Aerobic decoupling: ${decouplingBadge(detail.decoupling_pct)}</div>
       ${zoneMiniBar(detail.hr_zones)}
+      <canvas id="lap-pacehr-${id}" height="70"></canvas>
+      <canvas id="lap-elevation-${id}" height="50"></canvas>
       ${lapsTable(detail.laps)}
       <div class="track-map" id="map-${id}"></div>
       <div class="detail-actions">
@@ -399,6 +495,8 @@ async function loadActivityDetail(id, container) {
     markRowIgnored(id, result.is_ignored);
     await loadActivityDetail(id, container);
   });
+
+  renderLapCharts(id, detail.laps);
 
   loadTrackMap(id);
 }

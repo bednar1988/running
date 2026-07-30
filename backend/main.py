@@ -117,6 +117,10 @@ def activity_detail(activity_id: int, db: Session = Depends(get_session)):
         "vo2max_estimate": activity.vo2max_estimate,
         "is_ignored": activity.is_ignored,
         "decoupling_pct": aggregates.compute_decoupling(laps),
+        "weather_temp_c": activity.weather_temp_c,
+        "weather_humidity_pct": activity.weather_humidity_pct,
+        "weather_condition": activity.weather_condition,
+        "similar_runs": aggregates.similar_runs_rank(db, activity),
         "laps": [
             {
                 "lap_index": lap.lap_index,

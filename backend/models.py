@@ -53,6 +53,9 @@ class Activity(Base):
     is_ignored = Column(Boolean, nullable=False, default=False, server_default="0")
     # JSON-encoded [[lat, lon], ...] — NULL means "never fetched", "[]" means "fetched, no GPS"
     track_points_json = Column(Text)
+    weather_temp_c = Column(Float)
+    weather_humidity_pct = Column(Integer)
+    weather_condition = Column(String)
 
     laps = relationship("Lap", back_populates="activity", cascade="all, delete-orphan")
     hr_zones = relationship("HrZone", back_populates="activity", cascade="all, delete-orphan")
