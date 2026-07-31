@@ -57,6 +57,10 @@ class Activity(Base):
     weather_humidity_pct = Column(Integer)
     weather_condition = Column(String)
     note = Column(Text)  # user's own free-text note, not from Garmin
+    # JSON-encoded [[cumulative_distance_m, elapsed_s], ...] sample stream from
+    # get_activity_details(), used for best-effort (PR) search — NULL = never fetched,
+    # "[]" = fetched but unusable (no distance/time channels on this activity)
+    stream_json = Column(Text)
 
     laps = relationship("Lap", back_populates="activity", cascade="all, delete-orphan")
     hr_zones = relationship("HrZone", back_populates="activity", cascade="all, delete-orphan")

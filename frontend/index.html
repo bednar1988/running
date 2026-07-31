@@ -19,6 +19,7 @@
 <nav class="tabs">
   <button class="tab-btn active" data-tab="overview">Przegląd</button>
   <button class="tab-btn" data-tab="activities">Treningi</button>
+  <button class="tab-btn" data-tab="records">Rekordy</button>
   <button class="tab-btn" data-tab="export">Eksport</button>
 </nav>
 
@@ -115,6 +116,19 @@
       <table id="activities-table">
         <thead><tr><th></th><th>Data</th><th>Dystans</th><th>Czas</th><th>Tempo</th><th>Śr. tętno</th><th>Kadencja</th><th>TE aer.</th><th>TE anaer.</th><th></th></tr></thead>
         <tbody></tbody>
+      </table>
+    </section>
+  </section>
+
+  <section class="tab-panel hidden" data-tab="records">
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Rekordy życiowe</h2>
+        <span class="hint">Najlepszy odcinek dowolnego startu w obrębie treningu (tak jak liczy to Garmin) — nie tylko całe okrążenia czy średnia treningu.</span>
+      </div>
+      <table id="records-table">
+        <thead><tr><th>Dystans</th><th>Czas</th><th>Tempo</th><th>Data</th></tr></thead>
+        <tbody><tr><td colspan="4" class="hint">Obliczanie rekordów (przy pierwszym uruchomieniu może to potrwać) ...</td></tr></tbody>
       </table>
     </section>
   </section>

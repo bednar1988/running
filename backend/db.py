@@ -42,6 +42,9 @@ def _migrate() -> None:
         if "note" not in cols:
             conn.exec_driver_sql("ALTER TABLE activities ADD COLUMN note TEXT")
             conn.commit()
+        if "stream_json" not in cols:
+            conn.exec_driver_sql("ALTER TABLE activities ADD COLUMN stream_json TEXT")
+            conn.commit()
 
 
 def get_session():

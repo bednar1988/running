@@ -60,6 +60,7 @@ function switchTab(name) {
   if (!loadedTabs.has(name)) {
     loadedTabs.add(name);
     if (name === "activities") loadActivities();
+    if (name === "records") loadRecords();
   }
 }
 
@@ -669,6 +670,24 @@ async function loadActivities() {
 }
 
 $("#activities-limit").addEventListener("change", loadActivities);
+
+// --- Records tab -----------------------------------------------------------
+
+async function loadRecords() {
+  const tbody = $("#records-table tbody");
+  try {
+    const records = await api("/api/records");
+    tbody.innerHTML = records
+      .map(
+        (r) =>
+          `<tr><td>${r.label}</td><td>${r.time ?? "—"}</td><td>${r.pace_per_km ? r.pace_per_km + "/km" : "—"}</td><td>${r.date ? fmtDate(r.date) : "—"}</td></tr>`
+      )
+      .join("");
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4" class="hint">Błąd liczenia rekordów — sprawdź logi kontenera</td></tr>`;
+    console.error(e);
+  }
+}
 
 // --- Global (sync, export) -----------------------------------------------
 

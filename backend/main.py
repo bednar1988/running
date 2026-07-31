@@ -188,6 +188,42 @@ def resync_laps(activity_id: int, db: Session = Depends(get_session)):
     return {"id": activity_id, "laps": count}
 
 
+@app.get("/api/records")
+def personal_records(db: Session = Depends(get_session)):
+    """Best-effort (PR) search per standard distance — the same algorithm Garmin itself uses:
+    minimum elapsed time to cover the distance starting anywhere within an activity, not just
+    lap-aligned or whole-activity averages. Streams are fetched from Garmin once per activity
+    and cached (activities.stream_json); a cold cache can take a while the first time this is
+    requested, but every activity is only ever fetched once."""
+    activities = [a for a in aggregates.fetch_activities(db, include_ignored=True) if a.activity_type == "running"]
+
+    best: dict[str, dict] = {label: None for label, _ in aggregates.BEST_EFFORT_DISTANCES}
+    for a in activities:
+        applicable = [(label, target_m) for label, target_m in aggregates.BEST_EFFORT_DISTANCES if a.distance_m >= target_m]
+        if not applicable:
+            continue
+        stream = garmin_sync.get_or_fetch_stream(a.id, db)
+        if not stream:
+            continue
+        for label, target_m in applicable:
+            seconds = aggregates.best_effort_seconds(stream, target_m)
+            if seconds is None:
+                continue
+            if best[label] is None or seconds < best[label]["seconds"]:
+                best[label] = {"seconds": seconds, "activity_id": a.id, "date": a.start_time_local.date().isoformat()}
+
+    return [
+        {
+            "label": label,
+            "time": aggregates.format_duration(best[label]["seconds"]) if best[label] else None,
+            "pace_per_km": aggregates.format_pace(best[label]["seconds"] / (target_m / 1000)) if best[label] else None,
+            "activity_id": best[label]["activity_id"] if best[label] else None,
+            "date": best[label]["date"] if best[label] else None,
+        }
+        for label, target_m in aggregates.BEST_EFFORT_DISTANCES
+    ]
+
+
 @app.get("/api/aggregate")
 def aggregate(
     period: str = "week",

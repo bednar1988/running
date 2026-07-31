@@ -24,10 +24,63 @@ def f_to_c(fahrenheit: Optional[float]) -> Optional[float]:
     return round((fahrenheit - 32) * 5 / 9, 1) if fahrenheit is not None else None
 
 
+BEST_EFFORT_DISTANCES = [
+    ("1 km", 1000.0),
+    ("5 km", 5000.0),
+    ("10 km", 10000.0),
+    ("Półmaraton", 21097.5),
+    ("Maraton", 42195.0),
+]
+
+
+def best_effort_seconds(stream: list[tuple[float, float]], target_m: float) -> Optional[float]:
+    """Minimum elapsed time to cover target_m starting anywhere in the activity — the same
+    "best effort" search Garmin itself runs for personal records, not just a whole-activity or
+    lap-aligned average. `stream` is (cumulative_distance_m, elapsed_s) samples sorted by time;
+    the exact crossing point is linearly interpolated between the two straddling samples.
+    O(n) two-pointer since both the start index and its target-reaching index only move forward."""
+    n = len(stream)
+    if n < 2 or stream[-1][0] - stream[0][0] < target_m:
+        return None
+
+    best = None
+    j = 1
+    for i in range(n - 1):
+        dist_i, time_i = stream[i]
+        target_dist = dist_i + target_m
+        if j < i + 1:
+            j = i + 1
+        while j < n and stream[j][0] < target_dist:
+            j += 1
+        if j >= n:
+            break
+
+        d0, t0 = stream[j - 1]
+        d1, t1 = stream[j]
+        time_at_target = t0 + (target_dist - d0) / (d1 - d0) * (t1 - t0) if d1 > d0 else t1
+
+        elapsed = time_at_target - time_i
+        if elapsed > 0 and (best is None or elapsed < best):
+            best = elapsed
+
+    return best
+
+
 def format_pace(seconds_per_km: Optional[float]) -> Optional[str]:
     if seconds_per_km is None:
         return None
     minutes, seconds = divmod(round(seconds_per_km), 60)
+    return f"{minutes}:{seconds:02d}"
+
+
+def format_duration(total_seconds: Optional[float]) -> Optional[str]:
+    if total_seconds is None:
+        return None
+    total = round(total_seconds)
+    hours, rem = divmod(total, 3600)
+    minutes, seconds = divmod(rem, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{seconds:02d}"
     return f"{minutes}:{seconds:02d}"
 
 

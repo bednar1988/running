@@ -13,7 +13,7 @@ import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
-from garminconnect import Garmin
+from garminconnect import Garmin, parse_activity_detail_metrics
 from sqlalchemy.orm import Session
 
 from models import Activity, DailyWellness, HrZone, Lap, SyncState
@@ -450,3 +450,53 @@ def get_or_fetch_track(activity_id: int, db: Session) -> Optional[list[tuple[flo
     activity.track_points_json = json.dumps(points or [])
     db.commit()
     return points
+
+
+def _fetch_activity_stream(activity_id: int) -> list[tuple[float, float]]:
+    """Cumulative-distance/elapsed-time sample stream for a single activity, straight from
+    Garmin's own activity-detail chart data (the same source their app uses for best-effort/PR
+    search) — not derived from GPS points, which would be noisier than the watch's own fused
+    distance. Returns (distance_m, elapsed_s) pairs sorted by time."""
+    client = get_client()
+    raw = client.get_activity_details(str(activity_id))
+    samples = parse_activity_detail_metrics(raw)
+
+    stream = []
+    for s in samples:
+        dist = s.get("sumDistance")
+        elapsed = s.get("sumElapsedDuration")
+        if elapsed is None:
+            elapsed = s.get("sumDuration")
+        if dist is not None and elapsed is not None:
+            stream.append((float(dist), float(elapsed)))
+
+    if samples and not stream:
+        logger.warning(
+            "No distance/time channel matched in activity %s detail metrics; sample keys: %s",
+            activity_id,
+            sorted(samples[0].keys()) if samples else [],
+        )
+
+    stream.sort(key=lambda p: p[1])
+    return stream
+
+
+def get_or_fetch_stream(activity_id: int, db: Session) -> list[tuple[float, float]]:
+    """Cached wrapper around _fetch_activity_stream, same NULL/"[]" pattern as get_or_fetch_track."""
+    activity = db.get(Activity, activity_id)
+    if activity is None:
+        return []
+
+    if activity.stream_json is not None:
+        points = json.loads(activity.stream_json)
+        return [tuple(p) for p in points]
+
+    try:
+        stream = _fetch_activity_stream(activity_id)
+    except Exception:
+        logger.exception("Failed to fetch activity detail stream for %s", activity_id)
+        stream = []
+
+    activity.stream_json = json.dumps(stream)
+    db.commit()
+    return stream
