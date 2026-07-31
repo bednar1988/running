@@ -210,7 +210,7 @@ table {
   font-variant-numeric: tabular-nums;
 }
 
-.laps-table {
+.laps-table, .progression-table {
   table-layout: fixed;
 }
 

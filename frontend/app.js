@@ -673,18 +673,56 @@ $("#activities-limit").addEventListener("change", loadActivities);
 
 // --- Records tab -----------------------------------------------------------
 
+function recordProgressionTable(progression) {
+  if (!progression || progression.length < 2) {
+    return `<p class="hint">Tylko jeden zanotowany wynik — brak wcześniejszej historii do pokazania.</p>`;
+  }
+  const rows = progression
+    .slice()
+    .reverse()
+    .map(
+      (e, i, arr) =>
+        `<tr><td>${fmtDate(e.date)}</td><td>${e.time}</td><td>${e.pace_per_km}/km</td><td>${i === arr.length - 1 ? "—" : "poprawa"}</td></tr>`
+    )
+    .join("");
+  return `<table class="progression-table"><thead><tr><th>Data</th><th>Czas</th><th>Tempo</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
 async function loadRecords() {
   const tbody = $("#records-table tbody");
   try {
     const records = await api("/api/records");
-    tbody.innerHTML = records
-      .map(
-        (r) =>
-          `<tr><td>${r.label}</td><td>${r.time ?? "—"}</td><td>${r.pace_per_km ? r.pace_per_km + "/km" : "—"}</td><td>${r.date ? fmtDate(r.date) : "—"}</td></tr>`
-      )
-      .join("");
+    tbody.innerHTML = "";
+
+    records.forEach((r) => {
+      const row = document.createElement("tr");
+      row.className = "activity-row";
+      row.innerHTML = `
+        <td class="expand-toggle">▶</td>
+        <td>${r.label}</td>
+        <td>${r.time ?? "—"}</td>
+        <td>${r.pace_per_km ? r.pace_per_km + "/km" : "—"}</td>
+        <td>${r.date ? fmtDate(r.date) : "—"}</td>
+      `;
+
+      const detailRow = document.createElement("tr");
+      detailRow.className = "detail-row hidden";
+      const detailCell = document.createElement("td");
+      detailCell.colSpan = 5;
+      detailCell.innerHTML = recordProgressionTable(r.progression);
+      detailRow.appendChild(detailCell);
+
+      row.addEventListener("click", () => {
+        const opening = detailRow.classList.contains("hidden");
+        row.classList.toggle("expanded", opening);
+        detailRow.classList.toggle("hidden", !opening);
+      });
+
+      tbody.appendChild(row);
+      tbody.appendChild(detailRow);
+    });
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="4" class="hint">Błąd liczenia rekordów — sprawdź logi kontenera</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="hint">Błąd liczenia rekordów — sprawdź logi kontenera</td></tr>`;
     console.error(e);
   }
 }
