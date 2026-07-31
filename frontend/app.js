@@ -680,12 +680,9 @@ function recordProgressionTable(progression) {
   const rows = progression
     .slice()
     .reverse()
-    .map(
-      (e, i, arr) =>
-        `<tr><td>${fmtDate(e.date)}</td><td>${e.time}</td><td>${e.pace_per_km}/km</td><td>${i === arr.length - 1 ? "—" : "poprawa"}</td></tr>`
-    )
+    .map((e) => `<tr><td>${fmtDate(e.date)}</td><td>${e.time}</td><td>${e.pace_per_km}/km</td></tr>`)
     .join("");
-  return `<table class="progression-table"><thead><tr><th>Data</th><th>Czas</th><th>Tempo</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table class="progression-table"><thead><tr><th>Data</th><th>Czas</th><th>Tempo</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 async function loadRecords() {
