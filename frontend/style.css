@@ -261,9 +261,7 @@ textarea {
 
 .detail-actions {
   display: flex;
-  justify-content: flex-end;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--panel-border);
+  justify-content: center;
 }
 
 .ignore-toggle-btn {
@@ -364,12 +362,18 @@ textarea {
 }
 
 .weather-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
   font-size: 1.6rem;
   line-height: 1;
+  overflow: hidden;
 }
 
 .note-indicator {
-  font-size: 1.3rem;
+  font-size: 1.1rem;
   line-height: 1;
   text-align: center;
   width: 1.5rem;
