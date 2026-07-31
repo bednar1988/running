@@ -674,7 +674,10 @@ $("#activities-limit").addEventListener("change", loadActivities);
 // --- Records tab -----------------------------------------------------------
 
 function recordProgressionTable(progression) {
-  if (!progression || progression.length < 2) {
+  if (!progression || progression.length === 0) {
+    return `<p class="hint">Brak treningu wystarczająco długiego, żeby policzyć wynik na tym dystansie.</p>`;
+  }
+  if (progression.length === 1) {
     return `<p class="hint">Tylko jeden zanotowany wynik — brak wcześniejszej historii do pokazania.</p>`;
   }
   const rows = progression
