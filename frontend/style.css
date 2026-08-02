@@ -459,11 +459,11 @@ textarea {
   height: 9px;
 }
 
-.zone-1 { background: #4a7d76; }
-.zone-2 { background: #5f7d4f; }
-.zone-3 { background: #b8903f; }
-.zone-4 { background: #a8461c; }
-.zone-5 { background: #a83c3c; }
+.zone-1 { background: #3f8f96; }
+.zone-2 { background: #5fa050; }
+.zone-3 { background: #d1a52e; }
+.zone-4 { background: #d1701f; }
+.zone-5 { background: #9c2f6b; }
 
 @media (prefers-color-scheme: light) {
   :root {

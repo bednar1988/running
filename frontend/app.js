@@ -71,7 +71,7 @@ document.querySelectorAll(".tab-btn").forEach((b) => b.addEventListener("click",
 let weeklyVolumeChart, pacehrChart, efChart, zonesChart, wellnessChart, aggChart;
 let overviewWeeks = 12;
 
-const ZONE_COLORS = ["#4a7d76", "#5f7d4f", "#b8903f", "#a8461c", "#a83c3c"];
+const ZONE_COLORS = ["#3f8f96", "#5fa050", "#d1a52e", "#d1701f", "#9c2f6b"];
 // Fixed pace/HR colors everywhere the two are plotted together — blue vs red reads at a glance,
 // unlike two similarly-muted warm tones from the rest of the palette.
 const PACE_COLOR = "#4a7ba8";
@@ -469,7 +469,6 @@ function renderLapCharts(id, laps) {
       },
       options: {
         maintainAspectRatio: false,
-        scales: { y: { title: { display: true, text: "m" } } },
         plugins: {
           tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Math.abs(ctx.parsed.y)} m` } },
         },
