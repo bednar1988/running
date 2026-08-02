@@ -353,6 +353,10 @@ def sync_daily_wellness(db: Session) -> int:
         return 0
 
     added = 0
+    # Only advance the watermark past days that were actually fetched successfully — a day that
+    # hard-fails (network blip, rate limit) must be retried on the next sync, not silently
+    # skipped forever just because "today" moved on regardless of what actually succeeded.
+    last_good_day = start_day - timedelta(days=1)
     day = start_day
     while day <= today:
         cdate = day.isoformat()
@@ -362,8 +366,8 @@ def sync_daily_wellness(db: Session) -> int:
             if resting_hr is None:
                 logger.warning("Resting HR parse returned None for %s; raw response: %s", cdate, rhr_raw)
         except Exception:
-            logger.exception("Failed to fetch resting HR for %s", cdate)
-            resting_hr = None
+            logger.exception("Failed to fetch resting HR for %s — stopping here, will retry next sync", cdate)
+            break
 
         try:
             hrv_raw = client.get_hrv_data(cdate)
@@ -371,8 +375,8 @@ def sync_daily_wellness(db: Session) -> int:
             if hrv_avg is None:
                 logger.warning("HRV parse returned None for %s; raw response: %s", cdate, hrv_raw)
         except Exception:
-            logger.exception("Failed to fetch HRV for %s", cdate)
-            hrv_avg, hrv_status = None, None
+            logger.exception("Failed to fetch HRV for %s — stopping here, will retry next sync", cdate)
+            break
 
         existing = db.get(DailyWellness, day)
         if existing:
@@ -392,12 +396,13 @@ def sync_daily_wellness(db: Session) -> int:
             )
             added += 1
 
+        last_good_day = day
         day += timedelta(days=1)
 
     if not state:
         state = SyncState(id=1)
         db.add(state)
-    state.last_daily_wellness_date = today
+    state.last_daily_wellness_date = last_good_day
     state.last_sync_at = datetime.utcnow()
     db.commit()
 
