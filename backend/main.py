@@ -189,6 +189,30 @@ def resync_laps(activity_id: int, db: Session = Depends(get_session)):
     return {"id": activity_id, "laps": count}
 
 
+@app.post("/api/activities/resync-laps")
+def resync_laps_all(db: Session = Depends(get_session)):
+    """Force a fresh laps/hr-zones re-fetch for every already-synced running activity — for
+    backfilling a field-mapping fix (cadence, elevation_loss_m, ...) across historical data at
+    once, instead of hitting the single-activity endpoint one id at a time. One activity failing
+    (rate limit, network blip) doesn't stop the rest; failures are reported, not raised."""
+    activities = (
+        db.query(Activity)
+        .filter(Activity.activity_type.contains("running"))
+        .order_by(Activity.start_time_local.desc())
+        .all()
+    )
+    succeeded = 0
+    failed = []
+    for activity in activities:
+        try:
+            garmin_sync.resync_laps(activity.id, db)
+            succeeded += 1
+        except Exception:
+            logger.exception("Failed to resync laps for activity %s", activity.id)
+            failed.append(activity.id)
+    return {"total": len(activities), "succeeded": succeeded, "failed": failed}
+
+
 @app.get("/api/records")
 def personal_records(db: Session = Depends(get_session)):
     """Best-effort (PR) search per standard distance — the same algorithm Garmin itself uses:
