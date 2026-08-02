@@ -455,18 +455,24 @@ function renderLapCharts(id, laps) {
     });
   }
 
-  const elevLaps = laps.filter((l) => l.elevation_gain_m != null);
+  const elevLaps = laps.filter((l) => l.elevation_gain_m != null || l.elevation_loss_m != null);
   const elevCtx = $(`#lap-elevation-${id}`);
   if (elevCtx && elevLaps.length >= 2) {
     lapCharts[id].elevation = new Chart(elevCtx, {
       type: "bar",
       data: {
         labels: elevLaps.map((l) => l.lap_index),
-        datasets: [{ label: "Przewyższenie (m)", data: elevLaps.map((l) => l.elevation_gain_m), backgroundColor: "#5f7d4f" }],
+        datasets: [
+          { label: "Podjazd", data: elevLaps.map((l) => l.elevation_gain_m ?? 0), backgroundColor: "#5f7d4f" },
+          { label: "Zjazd", data: elevLaps.map((l) => -(l.elevation_loss_m ?? 0)), backgroundColor: "#b8903f" },
+        ],
       },
       options: {
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        scales: { y: { title: { display: true, text: "m" } } },
+        plugins: {
+          tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Math.abs(ctx.parsed.y)} m` } },
+        },
       },
     });
   }

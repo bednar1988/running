@@ -94,6 +94,7 @@ class Lap(Base):
     max_hr = Column(Integer)
     avg_cadence_spm = Column(Float)
     elevation_gain_m = Column(Float)
+    elevation_loss_m = Column(Float)
 
     activity = relationship("Activity", back_populates="laps")
 

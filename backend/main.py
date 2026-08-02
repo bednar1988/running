@@ -134,6 +134,7 @@ def activity_detail(activity_id: int, db: Session = Depends(get_session)):
                 "max_hr": lap.max_hr,
                 "avg_cadence_spm": aggregates.round_int(lap.avg_cadence_spm),
                 "elevation_gain_m": lap.elevation_gain_m,
+                "elevation_loss_m": lap.elevation_loss_m,
             }
             for lap in laps
         ],

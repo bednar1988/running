@@ -46,6 +46,11 @@ def _migrate() -> None:
             conn.exec_driver_sql("ALTER TABLE activities ADD COLUMN stream_json TEXT")
             conn.commit()
 
+        lap_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(laps)")}
+        if "elevation_loss_m" not in lap_cols:
+            conn.exec_driver_sql("ALTER TABLE laps ADD COLUMN elevation_loss_m REAL")
+            conn.commit()
+
 
 def get_session():
     session = SessionLocal()

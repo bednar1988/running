@@ -153,6 +153,7 @@ def _parse_laps(activity_id: int, raw: dict) -> list[dict]:
                 "max_hr": _dig(lap, "maxHR"),
                 "avg_cadence_spm": _round_cadence(cadence),
                 "elevation_gain_m": _dig(lap, "elevationGain"),
+                "elevation_loss_m": _dig(lap, "elevationLoss"),
             }
         )
 
@@ -162,10 +163,6 @@ def _parse_laps(activity_id: int, raw: dict) -> list[dict]:
             activity_id,
             lap_dtos[0],
         )
-
-    if lap_dtos:
-        elevation_keys = {k: v for k, v in lap_dtos[0].items() if "elev" in k.lower()}
-        logger.info("Activity %s lap elevation-related raw fields (first lap): %s", activity_id, elevation_keys)
 
     return laps
 
