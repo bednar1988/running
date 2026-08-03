@@ -318,7 +318,7 @@ async function loadAggregate() {
     .reverse()
     .map(
       (d) =>
-        `<tr><td>${d.period}</td><td>${d.distance_km}</td><td>${d.duration_h}</td><td>${d.avg_pace_per_km ?? "—"}</td><td>${d.activity_count}</td></tr>`
+        `<tr><td>${d.period}</td><td>${d.distance_km}</td><td>${d.duration_h}</td><td>${d.avg_pace_per_km ?? "—"}</td><td>${d.activity_count}</td><td>${d.calories}</td></tr>`
     )
     .join("");
 }
@@ -370,11 +370,12 @@ function teDescription(value) {
 }
 
 function trainingEffectSummary(detail) {
-  if (detail.aerobic_te == null && detail.anaerobic_te == null) return "";
+  if (detail.aerobic_te == null && detail.anaerobic_te == null && detail.calories == null) return "";
   return `
     <div class="te-summary">
       <span>Aerobowy <strong>${detail.aerobic_te?.toFixed(1) ?? "—"}</strong> <span class="hint">${teDescription(detail.aerobic_te)}</span></span>
       <span>Beztlenowy <strong>${detail.anaerobic_te?.toFixed(1) ?? "—"}</strong> <span class="hint">${teDescription(detail.anaerobic_te)}</span></span>
+      <span>Kalorie <strong>${detail.calories ?? "—"}</strong> <span class="hint">kcal</span></span>
     </div>
   `;
 }
@@ -652,13 +653,14 @@ async function loadActivities() {
       <td>${a.cadence_spm ?? "—"}</td>
       <td>${a.aerobic_te != null ? a.aerobic_te.toFixed(1) : "—"}</td>
       <td>${a.anaerobic_te != null ? a.anaerobic_te.toFixed(1) : "—"}</td>
+      <td>${a.calories ?? "—"}</td>
       <td class="note-indicator" title="${a.has_note ? "Ma notatkę" : ""}">${a.has_note ? "📝" : ""}</td>
     `;
 
     const detailRow = document.createElement("tr");
     detailRow.className = "detail-row hidden";
     const detailCell = document.createElement("td");
-    detailCell.colSpan = 10;
+    detailCell.colSpan = 11;
     detailCell.innerHTML = `<div class="detail-loading">Ładowanie…</div>`;
     detailRow.appendChild(detailCell);
 

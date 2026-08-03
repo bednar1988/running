@@ -119,13 +119,14 @@ def fetch_activities(
 def calendar_aggregate(db: Session, period: str, start: Optional[date] = None, end: Optional[date] = None) -> list[dict]:
     """Sum distance/time bucketed by calendar week/month/year (not rolling windows)."""
     activities = fetch_activities(db, start, end, include_ignored=True)
-    buckets: dict[str, dict] = defaultdict(lambda: {"distance_m": 0.0, "duration_s": 0.0, "count": 0})
+    buckets: dict[str, dict] = defaultdict(lambda: {"distance_m": 0.0, "duration_s": 0.0, "count": 0, "calories": 0})
 
     for a in activities:
         key = _period_key(a.start_time_local.date(), period)
         buckets[key]["distance_m"] += a.distance_m
         buckets[key]["duration_s"] += a.duration_s
         buckets[key]["count"] += 1
+        buckets[key]["calories"] += a.calories or 0
 
     result = []
     for key in sorted(buckets.keys()):
@@ -136,6 +137,7 @@ def calendar_aggregate(db: Session, period: str, start: Optional[date] = None, e
                 "distance_km": round(b["distance_m"] / 1000, 2),
                 "duration_h": round(b["duration_s"] / 3600, 2),
                 "activity_count": b["count"],
+                "calories": b["calories"],
                 "avg_pace_per_km": format_pace(b["duration_s"] / b["distance_m"] * 1000) if b["distance_m"] else None,
             }
         )
