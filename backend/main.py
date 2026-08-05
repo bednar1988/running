@@ -214,6 +214,17 @@ def resync_laps_all(db: Session = Depends(get_session)):
     return {"total": len(activities), "succeeded": succeeded, "failed": failed}
 
 
+@app.post("/api/wellness/resync")
+def resync_wellness(start: date, end: Optional[date] = None, db: Session = Depends(get_session)):
+    """Force-refetch resting HR / HRV for an explicit date range — for filling gaps left by a
+    past sync failure (e.g. a Garmin-side outage) without waiting for the normal watermark-driven
+    sync to work its way back that far. `end` defaults to today."""
+    end = end or date.today()
+    if start > end:
+        raise HTTPException(status_code=400, detail="start must be <= end")
+    return garmin_sync.resync_wellness_range(db, start, end)
+
+
 @app.get("/api/records")
 def personal_records(db: Session = Depends(get_session)):
     """Best-effort (PR) search per standard distance — the same algorithm Garmin itself uses:

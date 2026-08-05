@@ -331,6 +331,48 @@ def sync_activities(db: Session) -> int:
     return added
 
 
+def _sync_wellness_day(client: Garmin, db: Session, day: date) -> bool:
+    """Fetch + upsert RHR/HRV for one day. Returns False only on a hard fetch exception (network,
+    rate limit, ...) — a successful call that legitimately returns no data (e.g. watch not worn)
+    still counts as success, since there's nothing to retry there."""
+    cdate = day.isoformat()
+    try:
+        rhr_raw = client.get_rhr_day(cdate)
+        resting_hr = _parse_rhr(rhr_raw)
+        if resting_hr is None:
+            logger.warning("Resting HR parse returned None for %s; raw response: %s", cdate, rhr_raw)
+    except Exception:
+        logger.exception("Failed to fetch resting HR for %s", cdate)
+        return False
+
+    try:
+        hrv_raw = client.get_hrv_data(cdate)
+        hrv_avg, hrv_status = _parse_hrv(hrv_raw)
+        if hrv_avg is None:
+            logger.warning("HRV parse returned None for %s; raw response: %s", cdate, hrv_raw)
+    except Exception:
+        logger.exception("Failed to fetch HRV for %s", cdate)
+        return False
+
+    existing = db.get(DailyWellness, day)
+    if existing:
+        existing.resting_hr = resting_hr
+        existing.hrv_last_night_avg = hrv_avg
+        existing.hrv_status = hrv_status
+        existing.synced_at = datetime.utcnow()
+    else:
+        db.add(
+            DailyWellness(
+                date=day,
+                resting_hr=resting_hr,
+                hrv_last_night_avg=hrv_avg,
+                hrv_status=hrv_status,
+                synced_at=datetime.utcnow(),
+            )
+        )
+    return True
+
+
 def sync_daily_wellness(db: Session) -> int:
     client = get_client()
     state = db.get(SyncState, 1)
@@ -359,43 +401,11 @@ def sync_daily_wellness(db: Session) -> int:
     last_good_day = start_day - timedelta(days=1)
     day = start_day
     while day <= today:
-        cdate = day.isoformat()
-        try:
-            rhr_raw = client.get_rhr_day(cdate)
-            resting_hr = _parse_rhr(rhr_raw)
-            if resting_hr is None:
-                logger.warning("Resting HR parse returned None for %s; raw response: %s", cdate, rhr_raw)
-        except Exception:
-            logger.exception("Failed to fetch resting HR for %s — stopping here, will retry next sync", cdate)
+        is_new = db.get(DailyWellness, day) is None
+        if not _sync_wellness_day(client, db, day):
             break
-
-        try:
-            hrv_raw = client.get_hrv_data(cdate)
-            hrv_avg, hrv_status = _parse_hrv(hrv_raw)
-            if hrv_avg is None:
-                logger.warning("HRV parse returned None for %s; raw response: %s", cdate, hrv_raw)
-        except Exception:
-            logger.exception("Failed to fetch HRV for %s — stopping here, will retry next sync", cdate)
-            break
-
-        existing = db.get(DailyWellness, day)
-        if existing:
-            existing.resting_hr = resting_hr
-            existing.hrv_last_night_avg = hrv_avg
-            existing.hrv_status = hrv_status
-            existing.synced_at = datetime.utcnow()
-        else:
-            db.add(
-                DailyWellness(
-                    date=day,
-                    resting_hr=resting_hr,
-                    hrv_last_night_avg=hrv_avg,
-                    hrv_status=hrv_status,
-                    synced_at=datetime.utcnow(),
-                )
-            )
+        if is_new:
             added += 1
-
         last_good_day = day
         day += timedelta(days=1)
 
@@ -409,10 +419,54 @@ def sync_daily_wellness(db: Session) -> int:
     return added
 
 
+def resync_wellness_range(db: Session, start: date, end: date) -> dict:
+    """Force-refetch wellness for an explicit date range, independent of the sync-state
+    watermark — for filling gaps left by a past failure (e.g. a Garmin-side outage) instead of
+    waiting for the automatic retry-on-next-sync to reach that far back. Unlike the watermark-
+    driven sync, this keeps going past a failed day instead of stopping, since the caller
+    explicitly asked for this exact range and wants to know which days still failed, not just
+    how far it got."""
+    client = get_client()
+    processed = 0
+    updated = 0
+    failed = []
+    day = start
+    while day <= end:
+        ok = _sync_wellness_day(client, db, day)
+        processed += 1
+        if ok:
+            updated += 1
+        else:
+            failed.append(day.isoformat())
+        day += timedelta(days=1)
+    db.commit()
+    return {"days_processed": processed, "days_updated": updated, "failed_days": failed}
+
+
 def run_full_sync(db: Session) -> dict:
-    n_activities = sync_activities(db)
-    n_wellness = sync_daily_wellness(db)
-    n_weather = backfill_weather(db)
+    # Each step is isolated: a Garmin-side outage hitting the activities endpoint (seen in
+    # practice as a Cloudflare 521) must not also block wellness/weather, which are entirely
+    # different API paths and might well still be up.
+    try:
+        n_activities = sync_activities(db)
+    except Exception:
+        logger.exception("sync_activities failed")
+        db.rollback()
+        n_activities = 0
+
+    try:
+        n_wellness = sync_daily_wellness(db)
+    except Exception:
+        logger.exception("sync_daily_wellness failed")
+        db.rollback()
+        n_wellness = 0
+
+    try:
+        n_weather = backfill_weather(db)
+    except Exception:
+        logger.exception("backfill_weather failed")
+        db.rollback()
+        n_weather = 0
     return {"new_activities": n_activities, "wellness_days_synced": n_wellness, "weather_backfilled": n_weather}
 
 
