@@ -464,8 +464,8 @@ function renderLapCharts(id, laps) {
       data: {
         labels: elevLaps.map((l) => l.lap_index),
         datasets: [
-          { label: "Podjazd", data: elevLaps.map((l) => l.elevation_gain_m ?? 0), backgroundColor: "#5f7d4f" },
-          { label: "Zjazd", data: elevLaps.map((l) => -(l.elevation_loss_m ?? 0)), backgroundColor: "#b8903f" },
+          { label: "Podjazd", data: elevLaps.map((l) => l.elevation_gain_m ?? 0), backgroundColor: "#d1701f" },
+          { label: "Zjazd", data: elevLaps.map((l) => -(l.elevation_loss_m ?? 0)), backgroundColor: "#5fa050" },
         ],
       },
       options: {
