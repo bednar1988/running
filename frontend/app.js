@@ -369,6 +369,11 @@ function teDescription(value) {
   return "przetrenowanie";
 }
 
+function elevationSummary(detail) {
+  if (detail.elevation_gain_m == null && detail.elevation_loss_m == null) return "";
+  return `<div class="hint">Suma: <strong>${Math.round(detail.elevation_gain_m ?? 0)} m</strong> podjazdu, <strong>${Math.round(detail.elevation_loss_m ?? 0)} m</strong> zjazdu</div>`;
+}
+
 function trainingEffectSummary(detail) {
   if (detail.aerobic_te == null && detail.anaerobic_te == null && detail.calories == null) return "";
   return `
@@ -606,7 +611,7 @@ async function loadActivityDetail(id, container) {
       ${section("Warunki", weatherSummary(detail))}
       ${section("Tętno", `<div>Aerobic decoupling: ${decouplingBadge(detail.decoupling_pct)}</div>${zoneMiniBar(detail.hr_zones)}`)}
       ${section("Tempo i tętno per okrążenie", `<div class="lap-chart-box"><canvas id="lap-pacehr-${id}"></canvas></div>`)}
-      ${section("Przewyższenie per okrążenie", `<div class="lap-chart-box small"><canvas id="lap-elevation-${id}"></canvas></div>`)}
+      ${section("Przewyższenie per okrążenie", `<div class="lap-chart-box small"><canvas id="lap-elevation-${id}"></canvas></div>${elevationSummary(detail)}`)}
       ${section("Okrążenia", lapsTable(detail.laps))}
       <div class="detail-section"><div class="detail-section-title">Notatka</div><div id="note-body-${id}"></div></div>
       ${section("Trasa", `<div class="track-map" id="map-${id}"></div>`)}
