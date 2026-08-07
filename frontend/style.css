@@ -459,12 +459,6 @@ textarea {
   height: 9px;
 }
 
-.zone-1 { background: #3f8f96; }
-.zone-2 { background: #5fa050; }
-.zone-3 { background: #d1a52e; }
-.zone-4 { background: #d1701f; }
-.zone-5 { background: #9c2f6b; }
-
 details summary {
   cursor: pointer;
   font-weight: 700;
@@ -500,7 +494,8 @@ details[open] summary {
   vertical-align: top;
   padding: 0.35rem;
   border: 1px solid var(--panel-border);
-  min-width: 90px;
+  min-width: 100px;
+  height: 100px;
 }
 
 .plan-today {
@@ -510,17 +505,23 @@ details[open] summary {
 .plan-chip {
   display: block;
   font-size: 0.72rem;
-  padding: 0.2rem 0.35rem;
+  padding: 0.25rem 0.4rem;
   margin-bottom: 0.25rem;
   border-radius: 2px;
   background: var(--panel-border);
   color: #14100c;
   font-weight: 700;
   cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  white-space: normal;
+  line-height: 1.25;
 }
+
+.zone-1 { background: #3f8f96; }
+.zone-2 { background: #5fa050; }
+.zone-3 { background: #d1a52e; }
+.zone-4 { background: #d1701f; }
+.zone-5 { background: #9c2f6b; }
 
 .plan-add-btn {
   background: transparent;
