@@ -109,3 +109,35 @@ class DailyWellness(Base):
     hrv_last_night_avg = Column(Float)
     hrv_status = Column(String)
     synced_at = Column(DateTime, nullable=False)
+
+
+class PlanBlockTemplate(Base):
+    """A reusable training-block "recipe" (e.g. "Interwały 5x5min") — defined once in the block
+    library, then placed on however many calendar days via PlanBlock."""
+
+    __tablename__ = "plan_block_templates"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False)
+    block_type = Column(String, nullable=False)  # interval | tempo | low | medium | long | rest | race
+    zone = Column(Integer)  # 1-5, optional — drives the chip color (reuses the HR zone palette)
+    volume_text = Column(String)  # free text: "5x5min", "15k", "45min"
+    note = Column(Text)
+    created_at = Column(DateTime, nullable=False)
+
+    placements = relationship("PlanBlock", back_populates="template")
+
+
+class PlanBlock(Base):
+    """One placement of a PlanBlockTemplate on a specific calendar day."""
+
+    __tablename__ = "plan_blocks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    day = Column(Date, nullable=False, index=True)
+    template_id = Column(Integer, ForeignKey("plan_block_templates.id"), nullable=False)
+    note = Column(Text)  # optional override of the template's default note, for this placement
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False)
+
+    template = relationship("PlanBlockTemplate", back_populates="placements")

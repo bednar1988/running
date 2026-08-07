@@ -18,6 +18,22 @@ async function apiPost(path, body) {
   return res.json();
 }
 
+async function apiPatch(path, body) {
+  const res = await fetch(path, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${path} -> ${res.status}`);
+  return res.json();
+}
+
+async function apiDelete(path) {
+  const res = await fetch(path, { method: "DELETE" });
+  if (!res.ok) throw new Error(`${path} -> ${res.status}`);
+  return res.json();
+}
+
 function paceToSeconds(paceStr) {
   if (!paceStr) return null;
   const [m, s] = paceStr.split(":").map(Number);
@@ -61,6 +77,7 @@ function switchTab(name) {
     loadedTabs.add(name);
     if (name === "activities") loadActivities();
     if (name === "records") loadRecords();
+    if (name === "plan") loadPlanTab();
   }
 }
 
@@ -737,6 +754,217 @@ async function loadRecords() {
     tbody.innerHTML = `<tr><td colspan="5" class="hint">Błąd liczenia rekordów — sprawdź logi kontenera</td></tr>`;
     console.error(e);
   }
+}
+
+// --- Plan tab ----------------------------------------------------------
+
+const BLOCK_TYPE_LABELS = {
+  interval: "Interwały",
+  tempo: "Tempo",
+  low: "Spokojny",
+  medium: "Średni",
+  long: "Długi",
+  rest: "Odpoczynek",
+  race: "Zawody",
+};
+
+let planTemplates = [];
+let editingTemplateId = null;
+let planWeeksShown = 16;
+const PLAN_WEEKS_BACK = 2;
+const PLAN_WEEKS_INCREMENT = 8;
+
+function planStartMonday() {
+  const today = new Date();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) - PLAN_WEEKS_BACK * 7);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+async function loadPlanTab() {
+  await loadPlanTemplates();
+  await renderPlanGrid();
+}
+
+async function loadPlanTemplates() {
+  planTemplates = await api("/api/plan/templates");
+  renderTemplatesTable();
+}
+
+function renderTemplatesTable() {
+  const tbody = $("#plan-templates-table tbody");
+  if (!planTemplates.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="hint">Brak zdefiniowanych bloków — dodaj pierwszy poniżej.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = planTemplates
+    .map(
+      (t) => `
+      <tr>
+        <td>${escapeHtml(t.name)}</td>
+        <td>${BLOCK_TYPE_LABELS[t.block_type] ?? t.block_type}</td>
+        <td>${t.zone ?? "—"}</td>
+        <td>${t.volume_text ? escapeHtml(t.volume_text) : "—"}</td>
+        <td>${t.note ? escapeHtml(t.note) : "—"}</td>
+        <td>
+          <button type="button" class="pt-edit-btn" data-id="${t.id}">Edytuj</button>
+          <button type="button" class="pt-delete-btn" data-id="${t.id}">Usuń</button>
+        </td>
+      </tr>
+    `
+    )
+    .join("");
+
+  tbody.querySelectorAll(".pt-edit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => startEditingTemplate(Number(btn.dataset.id)));
+  });
+  tbody.querySelectorAll(".pt-delete-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await apiDelete(`/api/plan/templates/${btn.dataset.id}`);
+        await loadPlanTemplates();
+        await renderPlanGrid();
+      } catch (e) {
+        alert("Nie można usunąć — ten blok jest gdzieś przypisany w planie. Usuń najpierw te przypisania.");
+      }
+    });
+  });
+}
+
+function startEditingTemplate(id) {
+  const t = planTemplates.find((x) => x.id === id);
+  if (!t) return;
+  editingTemplateId = id;
+  $("#pt-name").value = t.name;
+  $("#pt-type").value = t.block_type;
+  $("#pt-zone").value = t.zone ?? "";
+  $("#pt-volume").value = t.volume_text ?? "";
+  $("#pt-note").value = t.note ?? "";
+  $("#pt-submit-btn").textContent = "Zapisz zmiany";
+}
+
+function resetTemplateForm() {
+  editingTemplateId = null;
+  $("#plan-template-form").reset();
+  $("#pt-submit-btn").textContent = "Dodaj blok";
+}
+
+$("#plan-template-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = $("#pt-name").value.trim();
+  if (!name) return;
+  const zoneValue = $("#pt-zone").value;
+  const payload = {
+    name,
+    block_type: $("#pt-type").value,
+    zone: zoneValue ? Number(zoneValue) : null,
+    volume_text: $("#pt-volume").value.trim() || null,
+    note: $("#pt-note").value.trim() || null,
+  };
+  if (editingTemplateId) {
+    await apiPatch(`/api/plan/templates/${editingTemplateId}`, payload);
+  } else {
+    await apiPost("/api/plan/templates", payload);
+  }
+  resetTemplateForm();
+  await loadPlanTemplates();
+  await renderPlanGrid();
+});
+
+$("#plan-more-btn").addEventListener("click", async () => {
+  planWeeksShown += PLAN_WEEKS_INCREMENT;
+  await renderPlanGrid();
+});
+
+async function renderPlanGrid() {
+  const start = planStartMonday();
+  const end = new Date(start);
+  end.setDate(start.getDate() + planWeeksShown * 7 - 1);
+
+  const blocks = await api(`/api/plan?start=${isoLocal(start)}&end=${isoLocal(end)}`);
+  const blocksByDay = {};
+  blocks.forEach((b) => {
+    (blocksByDay[b.day] ??= []).push(b);
+  });
+
+  const dayLabels = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
+  const todayIso = isoLocal(new Date());
+
+  let html = `<table class="plan-table"><thead><tr><th></th>${dayLabels.map((d) => `<th>${d}</th>`).join("")}</tr></thead><tbody>`;
+
+  for (let w = 0; w < planWeeksShown; w++) {
+    const weekStart = new Date(start);
+    weekStart.setDate(start.getDate() + w * 7);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    const fmt = (d) => `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+    html += `<tr><td class="plan-week-label">${fmt(weekStart)}–${fmt(weekEnd)}</td>`;
+    for (let d = 0; d < 7; d++) {
+      const day = new Date(weekStart);
+      day.setDate(weekStart.getDate() + d);
+      const dayIso = isoLocal(day);
+      const dayBlocks = blocksByDay[dayIso] || [];
+      html += `<td class="plan-day-cell${dayIso === todayIso ? " plan-today" : ""}" data-day="${dayIso}">`;
+      html += dayBlocks
+        .map(
+          (b) =>
+            `<div class="plan-chip${b.zone ? ` zone-${b.zone}` : ""}" data-block-id="${b.id}" title="${escapeHtml(b.note ?? "")}">${escapeHtml(b.name)}${b.volume_text ? ` · ${escapeHtml(b.volume_text)}` : ""}</div>`
+        )
+        .join("");
+      html += `<button type="button" class="plan-add-btn" data-day="${dayIso}">+</button></td>`;
+    }
+    html += "</tr>";
+  }
+  html += "</tbody></table>";
+
+  $("#plan-grid").innerHTML = html;
+
+  $("#plan-grid").querySelectorAll(".plan-add-btn").forEach((btn) => {
+    btn.addEventListener("click", () => openPlanPicker(btn.dataset.day, btn));
+  });
+  $("#plan-grid").querySelectorAll(".plan-chip").forEach((chip) => {
+    chip.addEventListener("click", async () => {
+      if (confirm("Usunąć ten blok z tego dnia?")) {
+        await apiDelete(`/api/plan/${chip.dataset.blockId}`);
+        await renderPlanGrid();
+      }
+    });
+  });
+}
+
+function openPlanPicker(day, anchorBtn) {
+  document.querySelectorAll(".plan-picker").forEach((p) => p.remove());
+  if (!planTemplates.length) {
+    alert("Najpierw dodaj przynajmniej jeden blok w bibliotece powyżej.");
+    return;
+  }
+
+  const picker = document.createElement("div");
+  picker.className = "plan-picker";
+  picker.innerHTML = planTemplates
+    .map((t) => `<button type="button" data-template-id="${t.id}">${escapeHtml(t.name)}</button>`)
+    .join("");
+  anchorBtn.insertAdjacentElement("afterend", picker);
+
+  picker.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      await apiPost("/api/plan", { day, template_id: Number(btn.dataset.templateId) });
+      picker.remove();
+      await renderPlanGrid();
+    });
+  });
+
+  setTimeout(() => {
+    document.addEventListener("click", function closePicker(ev) {
+      if (!picker.contains(ev.target) && ev.target !== anchorBtn) {
+        picker.remove();
+        document.removeEventListener("click", closePicker);
+      }
+    });
+  }, 0);
 }
 
 // --- Global (sync, export) -----------------------------------------------

@@ -20,6 +20,7 @@
   <button class="tab-btn active" data-tab="overview">Przegląd</button>
   <button class="tab-btn" data-tab="activities">Treningi</button>
   <button class="tab-btn" data-tab="records">Rekordy</button>
+  <button class="tab-btn" data-tab="plan">Plan</button>
   <button class="tab-btn" data-tab="export">Eksport</button>
 </nav>
 
@@ -130,6 +131,51 @@
         <thead><tr><th></th><th>Dystans</th><th>Czas</th><th>Tempo</th><th>Data</th></tr></thead>
         <tbody><tr><td colspan="5" class="hint">Obliczanie rekordów (przy pierwszym uruchomieniu może to potrwać) ...</td></tr></tbody>
       </table>
+    </section>
+  </section>
+
+  <section class="tab-panel hidden" data-tab="plan">
+    <section class="panel">
+      <details>
+        <summary>Biblioteka bloków</summary>
+        <table id="plan-templates-table">
+          <thead><tr><th>Nazwa</th><th>Typ</th><th>Strefa</th><th>Objętość</th><th>Notatka</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <form id="plan-template-form" class="controls">
+          <input type="text" id="pt-name" placeholder="Nazwa (np. Interwały 5x5min)" required>
+          <select id="pt-type">
+            <option value="interval">Interwały</option>
+            <option value="tempo">Tempo</option>
+            <option value="low">Spokojny</option>
+            <option value="medium" selected>Średni</option>
+            <option value="long">Długi</option>
+            <option value="rest">Odpoczynek</option>
+            <option value="race">Zawody</option>
+          </select>
+          <select id="pt-zone">
+            <option value="">Bez strefy</option>
+            <option value="1">Strefa 1</option>
+            <option value="2">Strefa 2</option>
+            <option value="3">Strefa 3</option>
+            <option value="4">Strefa 4</option>
+            <option value="5">Strefa 5</option>
+          </select>
+          <input type="text" id="pt-volume" placeholder="Objętość (np. 5x5min, 15k)">
+          <input type="text" id="pt-note" placeholder="Notatka (opcjonalnie)">
+          <button type="submit" id="pt-submit-btn">Dodaj blok</button>
+        </form>
+      </details>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Plan treningowy</h2>
+        <div class="controls">
+          <button id="plan-more-btn">Pokaż więcej tygodni</button>
+        </div>
+      </div>
+      <div id="plan-grid"></div>
     </section>
   </section>
 

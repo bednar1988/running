@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 import aggregates
 import export as export_module
 import garmin_sync
+import plan
 from db import get_session, init_db
 from garmin_sync import run_full_sync
 from models import Activity, HrZone, Lap
@@ -350,6 +351,92 @@ def export(
     db: Session = Depends(get_session),
 ):
     return export_module.export_json(db, start, end)
+
+
+# --- Training plan ----------------------------------------------------------
+# A reusable block library (PlanBlockTemplate) placed onto calendar days (PlanBlock) — purely
+# manual planning for now, no link to synced activities.
+
+
+class TemplateCreate(BaseModel):
+    name: str
+    block_type: str
+    zone: Optional[int] = None
+    volume_text: Optional[str] = None
+    note: Optional[str] = None
+
+
+class TemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    block_type: Optional[str] = None
+    zone: Optional[int] = None
+    volume_text: Optional[str] = None
+    note: Optional[str] = None
+
+
+@app.get("/api/plan/templates")
+def list_plan_templates(db: Session = Depends(get_session)):
+    return plan.list_templates(db)
+
+
+@app.post("/api/plan/templates")
+def create_plan_template(body: TemplateCreate, db: Session = Depends(get_session)):
+    return plan.create_template(db, body.name, body.block_type, body.zone, body.volume_text, body.note)
+
+
+@app.patch("/api/plan/templates/{template_id}")
+def update_plan_template(template_id: int, body: TemplateUpdate, db: Session = Depends(get_session)):
+    result = plan.update_template(db, template_id, body.model_dump(exclude_unset=True))
+    if result is None:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return result
+
+
+@app.delete("/api/plan/templates/{template_id}")
+def delete_plan_template(template_id: int, db: Session = Depends(get_session)):
+    deleted, error = plan.delete_template(db, template_id)
+    if not deleted:
+        raise HTTPException(status_code=400, detail=error)
+    return {"deleted": True}
+
+
+class BlockCreate(BaseModel):
+    day: date
+    template_id: int
+    note: Optional[str] = None
+
+
+class BlockUpdate(BaseModel):
+    note: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+@app.get("/api/plan")
+def list_plan_blocks(start: date, end: date, db: Session = Depends(get_session)):
+    return plan.list_blocks(db, start, end)
+
+
+@app.post("/api/plan")
+def create_plan_block(body: BlockCreate, db: Session = Depends(get_session)):
+    result = plan.create_block(db, body.day, body.template_id, body.note)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return result
+
+
+@app.patch("/api/plan/{block_id}")
+def update_plan_block(block_id: int, body: BlockUpdate, db: Session = Depends(get_session)):
+    result = plan.update_block(db, block_id, body.model_dump(exclude_unset=True))
+    if result is None:
+        raise HTTPException(status_code=404, detail="Block not found")
+    return result
+
+
+@app.delete("/api/plan/{block_id}")
+def delete_plan_block(block_id: int, db: Session = Depends(get_session)):
+    if not plan.delete_block(db, block_id):
+        raise HTTPException(status_code=404, detail="Block not found")
+    return {"deleted": True}
 
 
 if os.path.isdir(FRONTEND_DIR):

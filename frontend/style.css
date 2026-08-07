@@ -465,6 +465,107 @@ textarea {
 .zone-4 { background: #d1701f; }
 .zone-5 { background: #9c2f6b; }
 
+details summary {
+  cursor: pointer;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 0.75rem;
+}
+
+details[open] summary {
+  color: var(--text);
+}
+
+.plan-table {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.plan-week-label {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  width: 72px;
+  vertical-align: top;
+  padding-top: 0.5rem;
+}
+
+.plan-day-cell {
+  position: relative;
+  vertical-align: top;
+  padding: 0.35rem;
+  border: 1px solid var(--panel-border);
+  min-width: 90px;
+}
+
+.plan-today {
+  border-color: var(--accent);
+}
+
+.plan-chip {
+  display: block;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.35rem;
+  margin-bottom: 0.25rem;
+  border-radius: 2px;
+  background: var(--panel-border);
+  color: #14100c;
+  font-weight: 700;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-add-btn {
+  background: transparent;
+  border: 1px dashed var(--panel-border);
+  color: var(--text-dim);
+  width: 100%;
+  padding: 0.1rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.plan-picker {
+  position: absolute;
+  z-index: 20;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.plan-picker button {
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  border-radius: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--panel-border);
+  padding: 0.4rem 0.6rem;
+}
+
+.plan-picker button:last-child {
+  border-bottom: none;
+}
+
+.plan-picker button:hover {
+  background: var(--panel-border);
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     --bg: #efece3;
