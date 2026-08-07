@@ -335,9 +335,10 @@ def sync_activities(db: Session) -> int:
 def _sync_wellness_day(client: Garmin, db: Session, day: date) -> tuple[bool, bool]:
     """Fetch + upsert RHR/HRV for one day. Returns (fetched_ok, has_data):
     - fetched_ok is False only on a hard exception (network, rate limit, ...).
-    - has_data is False when the call succeeded but came back completely empty — could mean
-      the watch wasn't worn that day, or (for a recent day) that Garmin simply hasn't finished
-      computing it yet. The caller decides which, based on how old the day is."""
+    - has_data is False unless BOTH metrics came back — RHR and HRV are computed on their own
+      schedules, so a recent day often has one but not the other yet; requiring both (within
+      the caller's grace window) is what actually catches that, an OR here let a same-day RHR
+      arriving first mark the whole day "done" and permanently skip the still-missing HRV."""
     cdate = day.isoformat()
     try:
         rhr_raw = client.get_rhr_day(cdate)
@@ -373,7 +374,7 @@ def _sync_wellness_day(client: Garmin, db: Session, day: date) -> tuple[bool, bo
                 synced_at=datetime.utcnow(),
             )
         )
-    return True, (resting_hr is not None or hrv_avg is not None)
+    return True, (resting_hr is not None and hrv_avg is not None)
 
 
 def sync_daily_wellness(db: Session) -> int:
