@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -121,3 +121,30 @@ def delete_block(db: Session, block_id: int) -> bool:
     db.delete(b)
     db.commit()
     return True
+
+
+def copy_week(db: Session, from_monday: date, to_monday: date) -> list[dict]:
+    """Copies every block placed on from_monday..+6 onto the matching weekdays of
+    to_monday..+6. Appends rather than replaces — existing blocks already in the target week
+    are left alone, copies stack after them via sort_order."""
+    from_end = from_monday + timedelta(days=6)
+    blocks = (
+        db.query(PlanBlock)
+        .filter(PlanBlock.day >= from_monday, PlanBlock.day <= from_end)
+        .order_by(PlanBlock.day, PlanBlock.sort_order)
+        .all()
+    )
+    offset = (to_monday - from_monday).days
+    next_order: dict[date, int] = {}
+    created = []
+    for b in blocks:
+        new_day = b.day + timedelta(days=offset)
+        if new_day not in next_order:
+            next_order[new_day] = db.query(PlanBlock).filter(PlanBlock.day == new_day).count()
+        order = next_order[new_day]
+        next_order[new_day] = order + 1
+        nb = PlanBlock(day=new_day, template_id=b.template_id, note=b.note, sort_order=order, created_at=datetime.utcnow())
+        db.add(nb)
+        created.append(nb)
+    db.commit()
+    return [_block_dict(b) for b in created]

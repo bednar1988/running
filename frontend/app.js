@@ -890,17 +890,28 @@ async function renderPlanGrid() {
 
   const dayLabels = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
   const todayIso = isoLocal(new Date());
+  const fmt = (d) => `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, "0")}`;
 
   let html = `<table class="plan-table"><thead><tr><th></th>${dayLabels.map((d) => `<th>${d}</th>`).join("")}</tr></thead><tbody>`;
+
+  const weekMeta = [];
 
   for (let w = 0; w < planWeeksShown; w++) {
     const weekStart = new Date(start);
     weekStart.setDate(start.getDate() + w * 7);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
-    const fmt = (d) => `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const weekStartIso = isoLocal(weekStart);
 
-    html += `<tr><td class="plan-week-label">${fmt(weekStart)}–${fmt(weekEnd)}</td>`;
+    let weekBlockCount = 0;
+    for (let d = 0; d < 7; d++) {
+      const day = new Date(weekStart);
+      day.setDate(weekStart.getDate() + d);
+      weekBlockCount += (blocksByDay[isoLocal(day)] || []).length;
+    }
+    weekMeta.push({ startIso: weekStartIso, label: `${fmt(weekStart)}–${fmt(weekEnd)}`, count: weekBlockCount });
+
+    html += `<tr><td class="plan-week-label"><div class="plan-week-label-inner">${fmt(weekStart)}–${fmt(weekEnd)}<button type="button" class="plan-copy-btn" data-week="${weekStartIso}" title="Kopiuj z innego tygodnia">⧉</button></div></td>`;
     for (let d = 0; d < 7; d++) {
       const day = new Date(weekStart);
       day.setDate(weekStart.getDate() + d);
@@ -932,6 +943,52 @@ async function renderPlanGrid() {
       }
     });
   });
+  $("#plan-grid").querySelectorAll(".plan-copy-btn").forEach((btn) => {
+    btn.addEventListener("click", () => openWeekCopyPicker(btn.dataset.week, weekMeta, btn));
+  });
+}
+
+function openWeekCopyPicker(targetWeekIso, weekMeta, anchorBtn) {
+  document.querySelectorAll(".plan-picker").forEach((p) => p.remove());
+  const candidates = weekMeta.filter((w) => w.count > 0 && w.startIso !== targetWeekIso);
+  if (!candidates.length) {
+    alert("Brak wypełnionych tygodni do skopiowania w widocznym zakresie.");
+    return;
+  }
+
+  const picker = document.createElement("div");
+  picker.className = "plan-picker";
+  picker.innerHTML = candidates
+    .map((w) => `<button type="button" data-week="${w.startIso}">${w.label} (${w.count} ${w.count === 1 ? "blok" : "bloki"})</button>`)
+    .join("");
+  anchorBtn.insertAdjacentElement("afterend", picker);
+
+  picker.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      const targetMeta = weekMeta.find((w) => w.startIso === targetWeekIso);
+      if (
+        targetMeta &&
+        targetMeta.count > 0 &&
+        !confirm(`Ten tydzień zawiera już ${targetMeta.count} ${targetMeta.count === 1 ? "blok" : "bloki"} — dodać do nich kopię?`)
+      ) {
+        picker.remove();
+        return;
+      }
+      await apiPost("/api/plan/copy-week", { from_monday: btn.dataset.week, to_monday: targetWeekIso });
+      picker.remove();
+      await renderPlanGrid();
+    });
+  });
+
+  setTimeout(() => {
+    document.addEventListener("click", function closePicker(ev) {
+      if (!picker.contains(ev.target) && ev.target !== anchorBtn) {
+        picker.remove();
+        document.removeEventListener("click", closePicker);
+      }
+    });
+  }, 0);
 }
 
 function openPlanPicker(day, anchorBtn) {

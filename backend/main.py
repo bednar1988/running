@@ -439,6 +439,16 @@ def delete_plan_block(block_id: int, db: Session = Depends(get_session)):
     return {"deleted": True}
 
 
+class CopyWeekRequest(BaseModel):
+    from_monday: date
+    to_monday: date
+
+
+@app.post("/api/plan/copy-week")
+def copy_plan_week(body: CopyWeekRequest, db: Session = Depends(get_session)):
+    return plan.copy_week(db, body.from_monday, body.to_monday)
+
+
 if os.path.isdir(FRONTEND_DIR):
     _index_path = Path(FRONTEND_DIR, "index.html")
 

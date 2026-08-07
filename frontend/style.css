@@ -484,9 +484,34 @@ details[open] summary {
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  width: 72px;
+  width: 96px;
   vertical-align: top;
   padding-top: 0.5rem;
+  position: relative;
+}
+
+.plan-week-label-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.plan-copy-btn {
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  line-height: 1;
+  padding: 0.1rem 0.3rem;
+  cursor: pointer;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.plan-copy-btn:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
 }
 
 .plan-day-cell {
