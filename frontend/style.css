@@ -514,6 +514,29 @@ details[open] summary {
   border-color: var(--text-dim);
 }
 
+.plan-nav-controls {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.plan-nav-btn {
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.plan-nav-btn:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
 .plan-day-cell {
   position: relative;
   vertical-align: top;
@@ -555,6 +578,10 @@ details[open] summary {
 .plan-chip-race {
   background: linear-gradient(135deg, var(--danger), #6e1f1a);
   color: #f5ece7;
+}
+
+.plan-chip-done {
+  box-shadow: inset 0 0 0 2px #5fa050;
 }
 
 .plan-add-btn {

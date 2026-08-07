@@ -1,9 +1,9 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from models import PlanBlock, PlanBlockTemplate
+from models import Activity, PlanBlock, PlanBlockTemplate
 
 
 def _template_dict(t: PlanBlockTemplate) -> dict:
@@ -67,7 +67,7 @@ def delete_template(db: Session, template_id: int) -> tuple[bool, Optional[str]]
     return True, None
 
 
-def _block_dict(b: PlanBlock) -> dict:
+def _block_dict(b: PlanBlock, done: bool = False) -> dict:
     t = b.template
     return {
         "id": b.id,
@@ -79,6 +79,7 @@ def _block_dict(b: PlanBlock) -> dict:
         "volume_text": t.volume_text,
         "note": b.note if b.note is not None else t.note,
         "sort_order": b.sort_order,
+        "done": done,
     }
 
 
@@ -90,7 +91,21 @@ def list_blocks(db: Session, start: date, end: date) -> list[dict]:
         .order_by(PlanBlock.day, PlanBlock.sort_order)
         .all()
     )
-    return [_block_dict(b) for b in blocks]
+    # "Done" is deliberately presence-based, not a match against the block's prescribed
+    # zone/volume — matching real splits against a plan is fragile and not worth the noise. A
+    # running activity on the calendar day is a good-enough signal, checked either way (ignored
+    # ones still count: the user still ran, that's what matters here).
+    activity_days = {
+        a.start_time_local.date()
+        for a in db.query(Activity.start_time_local)
+        .filter(
+            Activity.activity_type == "running",
+            Activity.start_time_local >= datetime.combine(start, time.min),
+            Activity.start_time_local <= datetime.combine(end, time.max),
+        )
+        .all()
+    }
+    return [_block_dict(b, b.day in activity_days) for b in blocks]
 
 
 def create_block(db: Session, day: date, template_id: int, note: Optional[str] = None) -> Optional[dict]:

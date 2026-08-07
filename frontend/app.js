@@ -776,14 +776,16 @@ function planChipClass(b) {
 
 let planTemplates = [];
 let editingTemplateId = null;
-let planWeeksShown = 16;
-const PLAN_WEEKS_BACK = 2;
+const PLAN_WEEKS_BACK_INITIAL = 2;
+const PLAN_WEEKS_SHOWN_INITIAL = 16;
 const PLAN_WEEKS_INCREMENT = 8;
+let planWeeksBack = PLAN_WEEKS_BACK_INITIAL;
+let planWeeksShown = PLAN_WEEKS_SHOWN_INITIAL;
 
 function planStartMonday() {
   const today = new Date();
   const monday = new Date(today);
-  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) - PLAN_WEEKS_BACK * 7);
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) - planWeeksBack * 7);
   monday.setHours(0, 0, 0, 0);
   return monday;
 }
@@ -878,7 +880,13 @@ $("#plan-template-form").addEventListener("submit", async (e) => {
   await renderPlanGrid();
 });
 
-$("#plan-more-btn").addEventListener("click", async () => {
+$("#plan-newer-btn").addEventListener("click", async () => {
+  planWeeksShown += PLAN_WEEKS_INCREMENT;
+  await renderPlanGrid();
+});
+
+$("#plan-older-btn").addEventListener("click", async () => {
+  planWeeksBack += PLAN_WEEKS_INCREMENT;
   planWeeksShown += PLAN_WEEKS_INCREMENT;
   await renderPlanGrid();
 });
@@ -927,7 +935,7 @@ async function renderPlanGrid() {
       html += dayBlocks
         .map(
           (b) =>
-            `<div class="${planChipClass(b)}" data-block-id="${b.id}" title="${escapeHtml(b.note ?? "")}">${escapeHtml(b.name)}${b.volume_text ? ` · ${escapeHtml(b.volume_text)}` : ""}</div>`
+            `<div class="${planChipClass(b)}${b.done ? " plan-chip-done" : ""}" data-block-id="${b.id}" title="${escapeHtml(b.note ?? "")}${b.done ? (b.note ? " — " : "") + "zrealizowano" : ""}">${b.done ? "✓ " : ""}${escapeHtml(b.name)}${b.volume_text ? ` · ${escapeHtml(b.volume_text)}` : ""}</div>`
         )
         .join("");
       html += `<button type="button" class="plan-add-btn" data-day="${dayIso}">+</button></td>`;
