@@ -954,9 +954,14 @@ async function renderPlanGrid() {
   });
 }
 
+const PLAN_COPY_WEEK_CANDIDATES = 5;
+
 function openWeekCopyPicker(targetWeekIso, weekMeta, anchorBtn) {
   document.querySelectorAll(".plan-picker").forEach((p) => p.remove());
-  const candidates = weekMeta.filter((w) => w.count > 0 && w.startIso !== targetWeekIso);
+  const candidates = weekMeta
+    .filter((w) => w.count > 0 && w.startIso !== targetWeekIso)
+    .sort((a, b) => b.startIso.localeCompare(a.startIso))
+    .slice(0, PLAN_COPY_WEEK_CANDIDATES);
   if (!candidates.length) {
     alert("Brak wypełnionych tygodni do skopiowania w widocznym zakresie.");
     return;
