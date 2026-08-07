@@ -548,6 +548,15 @@ details[open] summary {
 .zone-4 { background: #d1701f; }
 .zone-5 { background: #9c2f6b; }
 
+.plan-chip-rest {
+  background: var(--panel-border);
+}
+
+.plan-chip-race {
+  background: linear-gradient(135deg, var(--danger), #6e1f1a);
+  color: #f5ece7;
+}
+
 .plan-add-btn {
   background: transparent;
   border: 1px dashed var(--panel-border);

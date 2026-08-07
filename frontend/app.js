@@ -768,6 +768,12 @@ const BLOCK_TYPE_LABELS = {
   race: "Zawody",
 };
 
+function planChipClass(b) {
+  if (b.block_type === "rest") return "plan-chip plan-chip-rest";
+  if (b.block_type === "race") return "plan-chip plan-chip-race";
+  return `plan-chip${b.zone ? ` zone-${b.zone}` : ""}`;
+}
+
 let planTemplates = [];
 let editingTemplateId = null;
 let planWeeksShown = 16;
@@ -921,7 +927,7 @@ async function renderPlanGrid() {
       html += dayBlocks
         .map(
           (b) =>
-            `<div class="plan-chip${b.zone ? ` zone-${b.zone}` : ""}" data-block-id="${b.id}" title="${escapeHtml(b.note ?? "")}">${escapeHtml(b.name)}${b.volume_text ? ` · ${escapeHtml(b.volume_text)}` : ""}</div>`
+            `<div class="${planChipClass(b)}" data-block-id="${b.id}" title="${escapeHtml(b.note ?? "")}">${escapeHtml(b.name)}${b.volume_text ? ` · ${escapeHtml(b.volume_text)}` : ""}</div>`
         )
         .join("");
       html += `<button type="button" class="plan-add-btn" data-day="${dayIso}">+</button></td>`;
