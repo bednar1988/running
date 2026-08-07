@@ -24,6 +24,7 @@ TOKEN_DIR = os.getenv("GARMIN_TOKEN_DIR", "/data/garmin_tokens")
 ACTIVITIES_PAGE_SIZE = 20
 MAX_PAGES = 100  # hard stop so a parsing bug can't loop forever on first full-history sync
 BACKFILL_WELLNESS_DAYS = 90  # how far back to pull resting HR / HRV on first sync
+WELLNESS_RECENT_GRACE_DAYS = 3  # don't accept an empty RHR/HRV result as final within this window
 
 _client: Optional[Garmin] = None
 
@@ -331,10 +332,12 @@ def sync_activities(db: Session) -> int:
     return added
 
 
-def _sync_wellness_day(client: Garmin, db: Session, day: date) -> bool:
-    """Fetch + upsert RHR/HRV for one day. Returns False only on a hard fetch exception (network,
-    rate limit, ...) — a successful call that legitimately returns no data (e.g. watch not worn)
-    still counts as success, since there's nothing to retry there."""
+def _sync_wellness_day(client: Garmin, db: Session, day: date) -> tuple[bool, bool]:
+    """Fetch + upsert RHR/HRV for one day. Returns (fetched_ok, has_data):
+    - fetched_ok is False only on a hard exception (network, rate limit, ...).
+    - has_data is False when the call succeeded but came back completely empty — could mean
+      the watch wasn't worn that day, or (for a recent day) that Garmin simply hasn't finished
+      computing it yet. The caller decides which, based on how old the day is."""
     cdate = day.isoformat()
     try:
         rhr_raw = client.get_rhr_day(cdate)
@@ -343,7 +346,7 @@ def _sync_wellness_day(client: Garmin, db: Session, day: date) -> bool:
             logger.warning("Resting HR parse returned None for %s; raw response: %s", cdate, rhr_raw)
     except Exception:
         logger.exception("Failed to fetch resting HR for %s", cdate)
-        return False
+        return False, False
 
     try:
         hrv_raw = client.get_hrv_data(cdate)
@@ -352,7 +355,7 @@ def _sync_wellness_day(client: Garmin, db: Session, day: date) -> bool:
             logger.warning("HRV parse returned None for %s; raw response: %s", cdate, hrv_raw)
     except Exception:
         logger.exception("Failed to fetch HRV for %s", cdate)
-        return False
+        return False, False
 
     existing = db.get(DailyWellness, day)
     if existing:
@@ -370,7 +373,7 @@ def _sync_wellness_day(client: Garmin, db: Session, day: date) -> bool:
                 synced_at=datetime.utcnow(),
             )
         )
-    return True
+    return True, (resting_hr is not None or hrv_avg is not None)
 
 
 def sync_daily_wellness(db: Session) -> int:
@@ -402,7 +405,19 @@ def sync_daily_wellness(db: Session) -> int:
     day = start_day
     while day <= today:
         is_new = db.get(DailyWellness, day) is None
-        if not _sync_wellness_day(client, db, day):
+        ok, has_data = _sync_wellness_day(client, db, day)
+        if not ok:
+            break
+        if not has_data and (today - day).days < WELLNESS_RECENT_GRACE_DAYS:
+            # Empty RHR+HRV for a day this recent is more likely "Garmin hasn't finished
+            # computing it yet" than genuinely no data — leave the watermark before it so the
+            # next sync retries, instead of accepting the gap as final.
+            logger.info(
+                "Wellness for %s came back empty and is within the %s-day grace window — "
+                "leaving it for the next sync instead of marking it done",
+                day.isoformat(),
+                WELLNESS_RECENT_GRACE_DAYS,
+            )
             break
         if is_new:
             added += 1
@@ -432,7 +447,7 @@ def resync_wellness_range(db: Session, start: date, end: date) -> dict:
     failed = []
     day = start
     while day <= end:
-        ok = _sync_wellness_day(client, db, day)
+        ok, _has_data = _sync_wellness_day(client, db, day)
         processed += 1
         if ok:
             updated += 1
