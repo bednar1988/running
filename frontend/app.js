@@ -776,16 +776,16 @@ function planChipClass(b) {
 
 let planTemplates = [];
 let editingTemplateId = null;
-const PLAN_WEEKS_BACK_INITIAL = 2;
-const PLAN_WEEKS_SHOWN_INITIAL = 16;
-const PLAN_WEEKS_INCREMENT = 8;
-let planWeeksBack = PLAN_WEEKS_BACK_INITIAL;
-let planWeeksShown = PLAN_WEEKS_SHOWN_INITIAL;
+const PLAN_WEEKS_BACK = 2;
+const PLAN_WEEKS_FORWARD = 12;
+const PLAN_WINDOW_WEEKS = PLAN_WEEKS_BACK + PLAN_WEEKS_FORWARD + 1; // + the current week itself
+// Fixed-size window that slides in whole-week steps — nav arrows shift this, not the window size.
+let planReferenceOffsetWeeks = 0;
 
 function planStartMonday() {
   const today = new Date();
   const monday = new Date(today);
-  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) - planWeeksBack * 7);
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) + (planReferenceOffsetWeeks - PLAN_WEEKS_BACK) * 7);
   monday.setHours(0, 0, 0, 0);
   return monday;
 }
@@ -881,20 +881,19 @@ $("#plan-template-form").addEventListener("submit", async (e) => {
 });
 
 $("#plan-newer-btn").addEventListener("click", async () => {
-  planWeeksShown += PLAN_WEEKS_INCREMENT;
+  planReferenceOffsetWeeks += 1;
   await renderPlanGrid();
 });
 
 $("#plan-older-btn").addEventListener("click", async () => {
-  planWeeksBack += PLAN_WEEKS_INCREMENT;
-  planWeeksShown += PLAN_WEEKS_INCREMENT;
+  planReferenceOffsetWeeks -= 1;
   await renderPlanGrid();
 });
 
 async function renderPlanGrid() {
   const start = planStartMonday();
   const end = new Date(start);
-  end.setDate(start.getDate() + planWeeksShown * 7 - 1);
+  end.setDate(start.getDate() + PLAN_WINDOW_WEEKS * 7 - 1);
 
   const blocks = await api(`/api/plan?start=${isoLocal(start)}&end=${isoLocal(end)}`);
   const blocksByDay = {};
@@ -910,7 +909,7 @@ async function renderPlanGrid() {
 
   const weekMeta = [];
 
-  for (let w = 0; w < planWeeksShown; w++) {
+  for (let w = 0; w < PLAN_WINDOW_WEEKS; w++) {
     const weekStart = new Date(start);
     weekStart.setDate(start.getDate() + w * 7);
     const weekEnd = new Date(weekStart);
@@ -931,11 +930,12 @@ async function renderPlanGrid() {
       day.setDate(weekStart.getDate() + d);
       const dayIso = isoLocal(day);
       const dayBlocks = blocksByDay[dayIso] || [];
-      html += `<td class="plan-day-cell${dayIso === todayIso ? " plan-today" : ""}" data-day="${dayIso}">`;
+      const dayDone = dayBlocks.some((b) => b.done);
+      html += `<td class="plan-day-cell${dayIso === todayIso ? " plan-today" : ""}${dayDone ? " plan-day-done" : ""}" data-day="${dayIso}">`;
       html += dayBlocks
         .map(
           (b) =>
-            `<div class="${planChipClass(b)}${b.done ? " plan-chip-done" : ""}" data-block-id="${b.id}" title="${escapeHtml(b.note ?? "")}${b.done ? (b.note ? " — " : "") + "zrealizowano" : ""}">${b.done ? "✓ " : ""}${escapeHtml(b.name)}${b.volume_text ? ` · ${escapeHtml(b.volume_text)}` : ""}</div>`
+            `<div class="${planChipClass(b)}" data-block-id="${b.id}" title="${escapeHtml(b.note ?? "")}${b.done ? (b.note ? " — " : "") + "zrealizowano" : ""}">${b.done ? "✓ " : ""}${escapeHtml(b.name)}${b.volume_text ? ` · ${escapeHtml(b.volume_text)}` : ""}</div>`
         )
         .join("");
       html += `<button type="button" class="plan-add-btn" data-day="${dayIso}">+</button></td>`;

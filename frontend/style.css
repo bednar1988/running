@@ -550,6 +550,10 @@ details[open] summary {
   border-color: var(--accent);
 }
 
+.plan-day-done {
+  box-shadow: inset 0 0 0 2px rgba(95, 160, 80, 0.45);
+}
+
 .plan-chip {
   display: block;
   font-size: 0.72rem;
@@ -578,10 +582,6 @@ details[open] summary {
 .plan-chip-race {
   background: linear-gradient(135deg, var(--danger), #6e1f1a);
   color: #f5ece7;
-}
-
-.plan-chip-done {
-  box-shadow: inset 0 0 0 2px #5fa050;
 }
 
 .plan-add-btn {
