@@ -512,15 +512,21 @@ function renderLapCharts(id, laps) {
   }
 }
 
+function formatNetElevation(l) {
+  if (l.elevation_gain_m == null && l.elevation_loss_m == null) return "—";
+  const net = Math.round((l.elevation_gain_m ?? 0) - (l.elevation_loss_m ?? 0));
+  return net > 0 ? `+${net} m` : `${net} m`;
+}
+
 function lapsTable(laps) {
   if (!laps.length) return `<p class="hint">Brak danych o okrążeniach.</p>`;
   const rows = laps
     .map(
       (l) =>
-        `<tr><td>${l.lap_index}</td><td>${l.distance_km ?? "—"} km</td><td>${l.duration_min ?? "—"} min</td><td>${l.avg_pace_per_km ?? "—"}</td><td>${l.avg_hr ?? "—"}</td><td>${l.avg_cadence_spm ?? "—"}</td></tr>`
+        `<tr><td>${l.lap_index}</td><td>${l.distance_km ?? "—"} km</td><td>${l.duration_min ?? "—"} min</td><td>${l.avg_pace_per_km ?? "—"}</td><td>${l.avg_hr ?? "—"}</td><td>${l.avg_cadence_spm ?? "—"}</td><td>${formatNetElevation(l)}</td></tr>`
     )
     .join("");
-  return `<table class="laps-table"><thead><tr><th>#</th><th>Dystans</th><th>Czas</th><th>Tempo</th><th>Tętno</th><th>Kadencja</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table class="laps-table"><thead><tr><th>#</th><th>Dystans</th><th>Czas</th><th>Tempo</th><th>Tętno</th><th>Kadencja</th><th>Przewyższenie</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 async function loadTrackMap(id) {
