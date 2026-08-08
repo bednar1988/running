@@ -268,6 +268,18 @@ async function loadZonesChart() {
         x: { stacked: true },
         y: { stacked: true, title: { display: true, text: "minuty" } },
       },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const week = data[ctx.dataIndex];
+              const total = [1, 2, 3, 4, 5].reduce((sum, z) => sum + (week[`zone_${z}_min`] || 0), 0);
+              const pct = total > 0 ? Math.round((ctx.parsed.y / total) * 100) : 0;
+              return `${ctx.dataset.label}: ${pct}%`;
+            },
+          },
+        },
+      },
     },
   });
 }
